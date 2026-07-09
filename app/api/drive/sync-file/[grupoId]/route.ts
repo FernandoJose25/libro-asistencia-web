@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabaseServer } from '@/lib/supabaseServer';
+import { contextoDrive } from '@/lib/driveContext';
 import { escribirAsistenciaEnArchivo } from '@/lib/drive';
 
 export async function POST(request: Request, { params }: { params: { grupoId: string } }) {
-  const supabase = supabaseServer();
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-
-  const { accessToken } = await request.json();
-  if (!accessToken) return NextResponse.json({ error: 'Falta accessToken' }, { status: 400 });
+  const ctx = await contextoDrive();
+  if (ctx.error) return ctx.error;
+  const { session, accessToken, supabase } = ctx;
 
   const { data: grupo } = await supabase
     .from('grupos')

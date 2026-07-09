@@ -70,13 +70,7 @@ export function AttendanceClient({
   }
 
   async function sincronizarConDrive() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.provider_token) return;
-    await fetch(`/api/drive/sync-file/${grupoId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: session.provider_token })
-    });
+    await fetch(`/api/drive/sync-file/${grupoId}`, { method: 'POST' });
   }
 
   async function sincronizarTodo() {

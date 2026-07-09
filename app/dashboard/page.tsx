@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabaseServer';
+import { tieneDriveConectado } from '@/lib/googleAuth';
 import { Topbar } from '@/components/Topbar';
 
 export default async function DashboardPage() {
@@ -8,13 +9,8 @@ export default async function DashboardPage() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) redirect('/login');
 
-  const { data: config } = await supabase
-    .from('profesores_config')
-    .select('carpeta_id, carpeta_nombre')
-    .eq('id', session.user.id)
-    .maybeSingle();
-
-  if (!config?.carpeta_id) redirect('/dashboard/import');
+  const conectado = await tieneDriveConectado(session.user.id);
+  if (!conectado) redirect('/dashboard/conectar-drive');
 
   const { data: grupos } = await supabase
     .from('grupos')
@@ -44,10 +40,10 @@ export default async function DashboardPage() {
               <div className="text-[11.5px] text-inkSoft mt-1">conectados desde Drive</div>
             </div>
             <div className="bg-white border border-border rounded-card p-4">
-              <div className="text-[11px] uppercase tracking-wide text-inkSoft mb-2">Carpeta conectada</div>
-              <div className="text-base font-bold truncate">{config.carpeta_nombre || 'Sin nombre'}</div>
+              <div className="text-[11px] uppercase tracking-wide text-inkSoft mb-2">Google Drive</div>
+              <div className="text-base font-bold truncate text-green">Conectado</div>
               <div className="text-[11.5px] text-inkSoft mt-1">
-                <Link href="/dashboard/import" className="text-goldDark font-semibold">Cambiar</Link>
+                <Link href="/dashboard/drive" className="text-goldDark font-semibold">Explorar archivos</Link>
               </div>
             </div>
             <div className="bg-white border border-border rounded-card p-4">
@@ -60,7 +56,11 @@ export default async function DashboardPage() {
           <h3 className="text-[15px] font-bold mb-3">Grupos</h3>
           <div className="bg-white border border-border rounded-card overflow-hidden">
             {(grupos || []).length === 0 && (
-              <div className="p-4 text-sm text-inkSoft">Aún no hay grupos. Ve a "Importar de Drive" para conectarlos.</div>
+              <div className="p-4 text-sm text-inkSoft">
+                Aún no hay grupos. Ve a{' '}
+                <Link href="/dashboard/drive" className="text-goldDark font-semibold">Drive</Link>{' '}
+                y marca un archivo como "Usar para asistencia".
+              </div>
             )}
             {(grupos || []).map((g, i) => (
               <Link

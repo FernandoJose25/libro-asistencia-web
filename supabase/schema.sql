@@ -1,22 +1,46 @@
 -- Ejecutar en Supabase → SQL Editor
--- Requiere que Google OAuth esté habilitado en Authentication → Providers,
--- con el scope de Drive agregado (ver README, sección "Google Cloud").
+--
+-- MODELO DE ACCESO: el administrador (tú) crea cada cuenta de profesor a mano en
+-- Authentication → Users → Add user (email + password). Los profesores NO se
+-- registran solos: no hay pantalla de "crear cuenta" en la app. Conectar Google
+-- Drive es un paso aparte que hace el profesor ya logueado, una sola vez
+-- (ver app/api/google/connect). Guardamos su refresh_token para renovar el
+-- acceso solos, sin que el profesor tenga que volver a autorizar nunca.
 
 create extension if not exists "uuid-ossp";
 
--- Config por profesor: qué carpeta de Drive tiene conectada
+-- Config por profesor (nombre visible, preferencias, etc. — ya no guarda una
+-- sola "carpeta conectada": el explorador navega todo el Drive del profesor).
 create table if not exists profesores_config (
   id uuid primary key references auth.users(id) on delete cascade,
-  carpeta_id text,
-  carpeta_nombre text,
+  nombre_visible text,
   updated_at timestamptz default now()
 );
 
--- Un grupo = un archivo dentro de la carpeta conectada
+-- Refresh token de Google por profesor. Con esto renovamos el access_token
+-- del lado del servidor antes de cada llamada a Drive: el profesor nunca ve
+-- un "tu sesión expiró".
+create table if not exists google_tokens (
+  profesor_id uuid primary key references auth.users(id) on delete cascade,
+  refresh_token text not null,
+  scope text,
+  updated_at timestamptz default now()
+);
+
+alter table google_tokens enable row level security;
+create policy "profesor ve/edita su propio token de Google"
+  on google_tokens for all
+  using (auth.uid() = profesor_id)
+  with check (auth.uid() = profesor_id);
+
+-- Un grupo = un archivo del Drive del profesor marcado como "usar para asistencia"
+-- (ya no depende de una única carpeta conectada: puede venir de cualquier
+-- carpeta que el profesor elija desde el explorador).
 create table if not exists grupos (
   id uuid primary key default uuid_generate_v4(),
   profesor_id uuid references auth.users(id) on delete cascade not null,
   archivo_id_nube text not null,
+  archivo_mime_type text,
   nombre text not null,
   activo boolean default true,
   ultima_sync timestamptz,

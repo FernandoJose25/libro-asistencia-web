@@ -1,17 +1,12 @@
 import { google } from 'googleapis';
+import { Readable } from 'stream';
 import * as XLSX from 'xlsx';
 
 /**
- * Todas estas funciones reciben `accessToken`: el provider_token que Supabase
- * devuelve tras el login con Google (session.provider_token). Ese token viene
- * de la sesión de Google del profesor, autorizado con el scope de Drive.
- *
- * IMPORTANTE (léelo antes de ir a producción con varios profesores):
- * el provider_token de Supabase expira (normalmente ~1h) y Supabase no lo
- * refresca automáticamente para llamadas a APIs de terceros. Para una v1
- * de un solo profesor esto es aceptable (basta con volver a iniciar sesión
- * si expira). Para producción real, conviene guardar el refresh_token de
- * Google (scope "offline") cifrado y renovarlo desde un endpoint propio.
+ * Todas estas funciones reciben `accessToken`, que ahora siempre viene de
+ * `obtenerAccessToken(profesorId)` (lib/googleAuth.ts) — un access_token
+ * fresco renovado con el refresh_token guardado del profesor. Ningún
+ * componente de cliente maneja tokens de Google directamente.
  */
 
 function driveClient(accessToken: string) {
@@ -20,29 +15,188 @@ function driveClient(accessToken: string) {
   return google.drive({ version: 'v3', auth });
 }
 
-const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const MIME_CSV = 'text/csv';
-const MIME_GSHEET = 'application/vnd.google-apps.spreadsheet';
+export const MIME_FOLDER = 'application/vnd.google-apps.folder';
+export const MIME_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+export const MIME_CSV = 'text/csv';
+export const MIME_GSHEET = 'application/vnd.google-apps.spreadsheet';
 
-export interface ArchivoDrive {
+const MIME_ASISTENCIA = [MIME_XLSX, MIME_CSV, MIME_GSHEET];
+
+export function esArchivoDeAsistencia(mimeType: string) {
+  return MIME_ASISTENCIA.includes(mimeType);
+}
+
+export interface ItemDrive {
   id: string;
   nombre: string;
   mimeType: string;
+  esCarpeta: boolean;
+  esAsistencia: boolean;
+  iconLink?: string;
+  thumbnailLink?: string;
+  modifiedTime?: string;
+  size?: string;
+  webViewLink?: string;
+  parents?: string[];
 }
 
-// Lista los archivos "reconocibles" (xlsx/csv/Google Sheet) dentro de una carpeta.
-export async function listarArchivosDeCarpeta(accessToken: string, carpetaId: string): Promise<ArchivoDrive[]> {
+// Lista TODO lo que hay dentro de una carpeta (o la raíz del Drive si no se
+// pasa carpetaId) — carpetas y archivos de cualquier tipo, igual que el
+// Drive real. Las carpetas van primero, luego archivos por nombre.
+export async function listarCarpeta(accessToken: string, carpetaId?: string): Promise<ItemDrive[]> {
+  const drive = driveClient(accessToken);
+  const padre = carpetaId || 'root';
+  const res = await drive.files.list({
+    q: `'${padre}' in parents and trashed = false`,
+    fields: 'files(id, name, mimeType, iconLink, thumbnailLink, modifiedTime, size, webViewLink, parents)',
+    orderBy: 'folder,name_natural',
+    pageSize: 1000
+  });
+
+  return (res.data.files || []).map((f) => ({
+    id: f.id as string,
+    nombre: f.name as string,
+    mimeType: f.mimeType as string,
+    esCarpeta: f.mimeType === MIME_FOLDER,
+    esAsistencia: esArchivoDeAsistencia(f.mimeType as string),
+    iconLink: f.iconLink || undefined,
+    thumbnailLink: f.thumbnailLink || undefined,
+    modifiedTime: f.modifiedTime || undefined,
+    size: f.size || undefined,
+    webViewLink: f.webViewLink || undefined,
+    parents: f.parents || undefined
+  }));
+}
+
+// Ruta (breadcrumb) desde la raíz hasta la carpeta actual, para mostrar
+// "Mi unidad / Carpeta A / Carpeta B" arriba del explorador.
+export async function ruta(accessToken: string, carpetaId?: string): Promise<{ id: string; nombre: string }[]> {
+  if (!carpetaId || carpetaId === 'root') return [];
+  const drive = driveClient(accessToken);
+  const items: { id: string; nombre: string }[] = [];
+  let actualId: string | undefined = carpetaId;
+
+  while (actualId) {
+    const res: any = await drive.files.get({ fileId: actualId, fields: 'id, name, parents' });
+    items.unshift({ id: res.data.id as string, nombre: res.data.name as string });
+    actualId = res.data.parents?.[0];
+    if (items.length > 20) break; // por seguridad, evita loops
+  }
+  return items;
+}
+
+export async function buscarEnDrive(accessToken: string, texto: string): Promise<ItemDrive[]> {
   const drive = driveClient(accessToken);
   const res = await drive.files.list({
-    q: `'${carpetaId}' in parents and trashed = false and (mimeType='${MIME_XLSX}' or mimeType='${MIME_CSV}' or mimeType='${MIME_GSHEET}')`,
-    fields: 'files(id, name, mimeType)',
-    pageSize: 200
+    q: `name contains '${texto.replace(/'/g, "\\'")}' and trashed = false`,
+    fields: 'files(id, name, mimeType, iconLink, thumbnailLink, modifiedTime, size, webViewLink, parents)',
+    pageSize: 50
   });
   return (res.data.files || []).map((f) => ({
     id: f.id as string,
-    nombre: (f.name as string).replace(/\.(xlsx|csv)$/i, ''),
-    mimeType: f.mimeType as string
+    nombre: f.name as string,
+    mimeType: f.mimeType as string,
+    esCarpeta: f.mimeType === MIME_FOLDER,
+    esAsistencia: esArchivoDeAsistencia(f.mimeType as string),
+    iconLink: f.iconLink || undefined,
+    thumbnailLink: f.thumbnailLink || undefined,
+    modifiedTime: f.modifiedTime || undefined,
+    size: f.size || undefined,
+    webViewLink: f.webViewLink || undefined,
+    parents: f.parents || undefined
   }));
+}
+
+export async function crearCarpeta(accessToken: string, nombre: string, carpetaPadreId?: string) {
+  const drive = driveClient(accessToken);
+  const res = await drive.files.create({
+    requestBody: {
+      name: nombre,
+      mimeType: MIME_FOLDER,
+      parents: carpetaPadreId ? [carpetaPadreId] : undefined
+    },
+    fields: 'id, name, mimeType'
+  });
+  return res.data;
+}
+
+export async function subirArchivo(
+  accessToken: string,
+  nombre: string,
+  mimeType: string,
+  buffer: Buffer,
+  carpetaId?: string
+) {
+  const drive = driveClient(accessToken);
+  const res = await drive.files.create({
+    requestBody: { name: nombre, parents: carpetaId ? [carpetaId] : undefined },
+    media: { mimeType, body: Readable.from(buffer) },
+    fields: 'id, name, mimeType'
+  });
+  return res.data;
+}
+
+export async function renombrarArchivo(accessToken: string, archivoId: string, nuevoNombre: string) {
+  const drive = driveClient(accessToken);
+  await drive.files.update({ fileId: archivoId, requestBody: { name: nuevoNombre } });
+}
+
+export async function moverArchivo(accessToken: string, archivoId: string, nuevaCarpetaId: string) {
+  const drive = driveClient(accessToken);
+  const actual = await drive.files.get({ fileId: archivoId, fields: 'parents' });
+  await drive.files.update({
+    fileId: archivoId,
+    addParents: nuevaCarpetaId,
+    removeParents: (actual.data.parents || []).join(',')
+  });
+}
+
+export async function copiarArchivo(accessToken: string, archivoId: string, nuevoNombre: string, carpetaId?: string) {
+  const drive = driveClient(accessToken);
+  const res = await drive.files.copy({
+    fileId: archivoId,
+    requestBody: { name: nuevoNombre, parents: carpetaId ? [carpetaId] : undefined }
+  });
+  return res.data;
+}
+
+export async function eliminarArchivo(accessToken: string, archivoId: string) {
+  const drive = driveClient(accessToken);
+  await drive.files.update({ fileId: archivoId, requestBody: { trashed: true } });
+}
+
+// Descarga los bytes crudos de un archivo (para "guardar localmente" desde el
+// navegador). Los Google Docs/Sheets/Slides no tienen bytes descargables
+// directos, así que se exportan al formato equivalente de Office.
+export async function descargarArchivo(
+  accessToken: string,
+  archivoId: string,
+  mimeType: string
+): Promise<{ buffer: Buffer; nombre: string; mimeSalida: string }> {
+  const drive = driveClient(accessToken);
+  const meta = await drive.files.get({ fileId: archivoId, fields: 'name' });
+  const nombreBase = (meta.data.name as string) || 'archivo';
+
+  const exportMap: Record<string, { mime: string; ext: string }> = {
+    'application/vnd.google-apps.spreadsheet': { mime: MIME_XLSX, ext: '.xlsx' },
+    'application/vnd.google-apps.document': {
+      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ext: '.docx'
+    },
+    'application/vnd.google-apps.presentation': {
+      mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      ext: '.pptx'
+    }
+  };
+
+  if (exportMap[mimeType]) {
+    const { mime, ext } = exportMap[mimeType];
+    const res = await drive.files.export({ fileId: archivoId, mimeType: mime }, { responseType: 'arraybuffer' });
+    return { buffer: Buffer.from(res.data as ArrayBuffer), nombre: nombreBase + ext, mimeSalida: mime };
+  }
+
+  const res = await drive.files.get({ fileId: archivoId, alt: 'media' }, { responseType: 'arraybuffer' });
+  return { buffer: Buffer.from(res.data as ArrayBuffer), nombre: nombreBase, mimeSalida: mimeType };
 }
 
 // Descarga un archivo y devuelve la lista de nombres de alumnos (primera columna, sin encabezado).
@@ -76,6 +230,9 @@ export async function leerAlumnosDeArchivo(accessToken: string, archivoId: strin
 }
 
 // Sobrescribe el archivo en Drive con el estado actual de asistencia (nombre + estatus del día).
+// Funciona tanto si el archivo original es .xlsx/.csv como si es un Google Sheet
+// (en ese caso Drive lo sigue tratando como Google Sheet: subimos el xlsx y
+// Drive lo convierte solo, porque el archivo ya es de tipo Google Sheet).
 export async function escribirAsistenciaEnArchivo(
   accessToken: string,
   archivoId: string,
@@ -95,7 +252,7 @@ export async function escribirAsistenciaEnArchivo(
     fileId: archivoId,
     media: {
       mimeType: MIME_XLSX,
-      body: buffer
+      body: Readable.from(buffer)
     }
   });
 }
