@@ -4,12 +4,21 @@ import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno, Estatus } from '@/lib/types';
+import { sanitizarNombreArchivo } from '@/lib/utils';
 import { StatusPillGroup } from './StatusPill';
 import { SyncButton } from './SyncButton';
+import { QrButton } from './QrButton';
+import { AiSummaryButton } from './AiSummaryButton';
+import { AttendanceHeatmap } from './AttendanceHeatmap';
 
 interface Fila {
   alumno: Alumno;
   estatus: Estatus;
+}
+
+interface Riesgo {
+  porcentajeFalta: number;
+  enRiesgo: boolean;
 }
 
 export function AttendanceClient({
@@ -17,16 +26,23 @@ export function AttendanceClient({
   grupoNombre,
   alumnosIniciales,
   estatusIniciales,
-  horasIniciales
+  horasIniciales,
+  umbralInicial,
+  riesgoPorAlumno,
+  diasHeatmap
 }: {
   grupoId: string;
   grupoNombre: string;
   alumnosIniciales: Alumno[];
   estatusIniciales: Record<string, Estatus>;
   horasIniciales: 1 | 2;
+  umbralInicial: number;
+  riesgoPorAlumno: Record<string, Riesgo>;
+  diasHeatmap: { fecha: string; tasaAsistencia: number }[];
 }) {
   const supabase = supabaseBrowser();
   const hoy = new Date().toISOString().slice(0, 10);
+  const nombreArchivoBase = sanitizarNombreArchivo(grupoNombre);
 
   const [filas, setFilas] = useState<Fila[]>(
     alumnosIniciales.map((a) => ({ alumno: a, estatus: estatusIniciales[a.id] || 'falto' }))
@@ -39,6 +55,9 @@ export function AttendanceClient({
   const [nuevoAlumno, setNuevoAlumno] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombreEdit, setNombreEdit] = useState('');
+  const [umbral, setUmbral] = useState(umbralInicial);
+  const [editandoUmbral, setEditandoUmbral] = useState(false);
+  const [guardandoUmbral, setGuardandoUmbral] = useState(false);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -55,6 +74,11 @@ export function AttendanceClient({
 
   function cambiarEstatus(alumnoId: string, estatus: Estatus) {
     setFilas((prev) => prev.map((f) => (f.alumno.id === alumnoId ? { ...f, estatus } : f)));
+    setDirty(true);
+  }
+
+  function marcarTodosPresentes() {
+    setFilas((prev) => prev.map((f) => ({ ...f, estatus: 'asistio' as Estatus })));
     setDirty(true);
   }
 
@@ -107,6 +131,17 @@ export function AttendanceClient({
     );
   }
 
+  async function guardarUmbral() {
+    setGuardandoUmbral(true);
+    const res = await fetch(`/api/grupos/${grupoId}/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ umbralFaltaPorcentaje: umbral })
+    });
+    setGuardandoUmbral(false);
+    if (res.ok) setEditandoUmbral(false);
+  }
+
   async function guardarEnSupabase() {
     const registros = filas.map((f) => ({
       alumno_id: f.alumno.id,
@@ -141,8 +176,8 @@ export function AttendanceClient({
       ...filas.map((f) => [f.alumno.nombre, f.estatus])
     ]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, grupoNombre);
-    XLSX.writeFile(wb, `${grupoNombre}-${hoy}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
+    XLSX.writeFile(wb, `${nombreArchivoBase}-${hoy}.xlsx`);
   }
 
   function exportarPDF() {
@@ -167,18 +202,19 @@ export function AttendanceClient({
   }
 
   const estadoSync = !online ? 'sin_conexion' : guardando ? 'guardando' : dirty ? 'pendiente' : 'sincronizado';
+  const enRiesgoCount = Object.values(riesgoPorAlumno).filter((r) => r.enRiesgo).length;
 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-[900px] mx-auto px-8 py-6 pb-14">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2.5">
           <h2 className="text-xl font-bold">{grupoNombre}</h2>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <QrButton grupoId={grupoId} horas={horas} />
             <button
               onClick={() => setGestionando((v) => !v)}
-              className={`px-3.5 py-2 rounded-md border text-sm font-semibold ${
-                gestionando ? 'bg-navy border-navy text-white' : 'border-border text-inkSoft'
-              }`}
+              className={`px-3.5 py-2 rounded-md border text-sm font-semibold ${gestionando ? 'bg-navy border-navy text-white' : 'border-border text-inkSoft'
+                }`}
             >
               👥 Gestionar alumnos
             </button>
@@ -187,7 +223,15 @@ export function AttendanceClient({
         </div>
         <div className="text-xs text-inkSoft font-mono mb-4">{hoy}</div>
 
-        <div className="flex items-center gap-2 mb-4 bg-white border border-border rounded-card px-3.5 py-2.5">
+        {enRiesgoCount > 0 && (
+          <div className="flex items-center justify-between gap-2 mb-4 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5">
+            <span className="text-sm text-red">
+              ⚠️ <b>{enRiesgoCount}</b> alumno(s) en riesgo (superan el {umbral}% de falta configurado para este grupo).
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mb-4 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap">
           <span className="text-xs text-inkSoft mr-1">Clase de hoy:</span>
           <button
             onClick={() => cambiarHoras(1)}
@@ -201,7 +245,40 @@ export function AttendanceClient({
           >
             2 horas
           </button>
-          <span className="text-[11.5px] text-inkSoft ml-auto">Las faltas de un día de 2h cuentan doble.</span>
+          <button
+            onClick={marcarTodosPresentes}
+            className="text-xs px-3.5 py-1.5 rounded-full border border-border text-inkSoft hover:bg-bg font-semibold"
+          >
+            ✓ Marcar todos presentes
+          </button>
+
+          <div className="ml-auto flex items-center gap-1.5">
+            {editandoUmbral ? (
+              <>
+                <span className="text-[11.5px] text-inkSoft">Umbral de riesgo:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={umbral}
+                  onChange={(e) => setUmbral(Number(e.target.value))}
+                  className="w-16 text-xs border border-border rounded px-2 py-1"
+                />
+                <span className="text-[11.5px] text-inkSoft">%</span>
+                <button
+                  onClick={guardarUmbral}
+                  disabled={guardandoUmbral}
+                  className="text-[11.5px] px-2 py-1 rounded bg-navy text-white font-semibold"
+                >
+                  {guardandoUmbral ? '...' : 'Guardar'}
+                </button>
+              </>
+            ) : (
+              <button onClick={() => setEditandoUmbral(true)} className="text-[11.5px] text-inkSoft hover:underline">
+                ⚙ Umbral de riesgo: {umbral}%
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="bg-white border border-border rounded-card overflow-hidden">
@@ -210,46 +287,52 @@ export function AttendanceClient({
             <span>Alumno</span><span>Asistencia</span>
             {gestionando && <span>Acciones</span>}
           </div>
-          {filas.map((f, i) => (
-            <div
-              key={f.alumno.id}
-              className={`grid ${gestionando ? 'grid-cols-[24px_1fr_300px_84px]' : 'grid-cols-[1fr_300px]'} items-center px-4 py-2.5 border-b border-border last:border-b-0`}
-            >
-              {gestionando && (
-                <div className="flex flex-col text-inkSoft text-[10px] leading-none">
-                  <button onClick={() => moverAlumno(i, -1)} disabled={i === 0} className="disabled:opacity-20">▲</button>
-                  <button onClick={() => moverAlumno(i, 1)} disabled={i === filas.length - 1} className="disabled:opacity-20">▼</button>
-                </div>
-              )}
+          {filas.map((f, i) => {
+            const riesgo = riesgoPorAlumno[f.alumno.id];
+            return (
+              <div
+                key={f.alumno.id}
+                className={`grid ${gestionando ? 'grid-cols-[24px_1fr_300px_84px]' : 'grid-cols-[1fr_300px]'} items-center px-4 py-2.5 border-b border-border last:border-b-0`}
+              >
+                {gestionando && (
+                  <div className="flex flex-col text-inkSoft text-[10px] leading-none">
+                    <button onClick={() => moverAlumno(i, -1)} disabled={i === 0} className="disabled:opacity-20">▲</button>
+                    <button onClick={() => moverAlumno(i, 1)} disabled={i === filas.length - 1} className="disabled:opacity-20">▼</button>
+                  </div>
+                )}
 
-              {editandoId === f.alumno.id ? (
-                <input
-                  autoFocus
-                  value={nombreEdit}
-                  onChange={(e) => setNombreEdit(e.target.value)}
-                  onBlur={() => guardarNombre(f.alumno.id)}
-                  onKeyDown={(e) => e.key === 'Enter' && guardarNombre(f.alumno.id)}
-                  className="text-sm border border-gold rounded px-2 py-1 w-full max-w-[260px]"
-                />
-              ) : (
-                <span
-                  className={`text-sm ${gestionando ? 'cursor-text hover:underline' : ''}`}
-                  onClick={() => gestionando && empezarEdicion(f.alumno)}
-                >
-                  {f.alumno.nombre}
-                </span>
-              )}
+                {editandoId === f.alumno.id ? (
+                  <input
+                    autoFocus
+                    value={nombreEdit}
+                    onChange={(e) => setNombreEdit(e.target.value)}
+                    onBlur={() => guardarNombre(f.alumno.id)}
+                    onKeyDown={(e) => e.key === 'Enter' && guardarNombre(f.alumno.id)}
+                    className="text-sm border border-gold rounded px-2 py-1 w-full max-w-[260px]"
+                  />
+                ) : (
+                  <span
+                    className={`text-sm flex items-center gap-1.5 ${gestionando ? 'cursor-text hover:underline' : ''}`}
+                    onClick={() => gestionando && empezarEdicion(f.alumno)}
+                  >
+                    {f.alumno.nombre}
+                    {riesgo?.enRiesgo && (
+                      <span title={`${riesgo.porcentajeFalta}% de falta acumulada`} className="text-red text-xs">⚠️</span>
+                    )}
+                  </span>
+                )}
 
-              <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
+                <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
 
-              {gestionando && (
-                <div className="flex gap-2 justify-end">
-                  <button onClick={() => empezarEdicion(f.alumno)} title="Renombrar" className="text-inkSoft hover:text-ink">✎</button>
-                  <button onClick={() => eliminarAlumno(f.alumno.id)} title="Eliminar" className="text-red">🗑</button>
-                </div>
-              )}
-            </div>
-          ))}
+                {gestionando && (
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => empezarEdicion(f.alumno)} title="Renombrar" className="text-inkSoft hover:text-ink">✎</button>
+                    <button onClick={() => eliminarAlumno(f.alumno.id)} title="Eliminar" className="text-red">🗑</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {gestionando && (
             <div className="flex gap-2 items-center px-4 py-3 bg-bg/60">
@@ -284,6 +367,14 @@ export function AttendanceClient({
           <button onClick={exportarPDF} className="px-4 py-2 rounded-md border border-border text-sm">
             Exportar PDF
           </button>
+        </div>
+
+        <div className="mt-6">
+          <AttendanceHeatmap dias={diasHeatmap} />
+        </div>
+
+        <div className="mt-6">
+          <AiSummaryButton grupoId={grupoId} />
         </div>
       </div>
     </div>

@@ -12,7 +12,7 @@ export default async function GrupoPage({ params }: { params: { id: string } }) 
 
   const { data: grupos } = await supabase
     .from('grupos')
-    .select('id, profesor_id, archivo_id_nube, nombre, activo, ultima_sync')
+    .select('id, profesor_id, archivo_id_nube, nombre, activo, ultima_sync, umbral_falta_porcentaje')
     .eq('profesor_id', session.user.id)
     .eq('activo', true)
     .order('nombre');
@@ -37,6 +37,36 @@ export default async function GrupoPage({ params }: { params: { id: string } }) 
   (registros || []).forEach((r) => { estatusIniciales[r.alumno_id] = r.estatus as Estatus; });
   const horasIniciales = ((registros || [])[0]?.horas_clase_dia as 1 | 2) || 1;
 
+  // Riesgo por alumno (feature de alertas configurables)
+  const { data: riesgoRows } = await supabase
+    .from('riesgo_por_alumno')
+    .select('alumno_id, porcentaje_falta, en_riesgo')
+    .eq('grupo_id', grupo.id);
+
+  const riesgoPorAlumno: Record<string, { porcentajeFalta: number; enRiesgo: boolean }> = {};
+  (riesgoRows || []).forEach((r) => {
+    riesgoPorAlumno[r.alumno_id] = { porcentajeFalta: r.porcentaje_falta, enRiesgo: r.en_riesgo };
+  });
+
+  // Calendario de asistencia (heatmap): una fila por día dictado + su tasa de asistencia real.
+  const { data: sesiones } = await supabase
+    .from('sesiones_grupo')
+    .select('fecha')
+    .eq('grupo_id', grupo.id)
+    .order('fecha');
+
+  const { data: registrosTodos } = await supabase
+    .from('registros_asistencia')
+    .select('fecha, estatus')
+    .in('alumno_id', (alumnos || []).map((a) => a.id));
+
+  const totalAlumnos = (alumnos || []).length || 1;
+  const diasHeatmap = (sesiones || []).map((s) => {
+    const delDia = (registrosTodos || []).filter((r) => r.fecha === s.fecha);
+    const presentes = delDia.filter((r) => r.estatus === 'asistio' || r.estatus === 'tardanza').length;
+    return { fecha: s.fecha, tasaAsistencia: presentes / totalAlumnos };
+  });
+
   const inicial = (session.user.email || 'P')[0].toUpperCase();
 
   return (
@@ -49,6 +79,9 @@ export default async function GrupoPage({ params }: { params: { id: string } }) 
         alumnosIniciales={alumnos || []}
         estatusIniciales={estatusIniciales}
         horasIniciales={horasIniciales}
+        umbralInicial={grupo.umbral_falta_porcentaje}
+        riesgoPorAlumno={riesgoPorAlumno}
+        diasHeatmap={diasHeatmap}
       />
     </>
   );

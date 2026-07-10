@@ -36,7 +36,11 @@ export function urlDeAutorizacion(state: string) {
   const client = oauthClient();
   return client.generateAuthUrl({
     access_type: 'offline',
-    prompt: 'consent',
+    // 'consent' fuerza a que siempre entregue un refresh_token nuevo.
+    // 'select_account' fuerza el selector de cuentas de Google, para que un
+    // profesor pueda desconectar y volver a conectar con una cuenta de
+    // Drive distinta sin que Google lo autologuee con la misma de antes.
+    prompt: 'consent select_account',
     scope: SCOPES,
     state
   });
@@ -100,4 +104,34 @@ export async function tieneDriveConectado(profesorId: string): Promise<boolean> 
     .eq('profesor_id', profesorId)
     .maybeSingle();
   return !!data;
+}
+
+// Cierra sesión de la cuenta de Drive conectada: le avisa a Google que ya no
+// queremos el token (revoke) y borra el refresh_token guardado. Después de
+// esto, el profesor vuelve a ver la pantalla "Conecta tu Google Drive" y, al
+// conectar de nuevo, Google le muestra el selector de cuentas — puede volver
+// a elegir la misma cuenta o una distinta.
+export async function desconectarDrive(profesorId: string): Promise<void> {
+  const supabase = supabaseServer();
+  const { data } = await supabase
+    .from('google_tokens')
+    .select('refresh_token')
+    .eq('profesor_id', profesorId)
+    .maybeSingle();
+
+  if (data?.refresh_token) {
+    try {
+      await fetch('https://oauth2.googleapis.com/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `token=${encodeURIComponent(data.refresh_token)}`
+      });
+    } catch {
+      // Si Google no responde (o el token ya estaba revocado del otro lado),
+      // igual seguimos y borramos nuestro registro — lo importante es que
+      // esta app deje de tener el token guardado.
+    }
+  }
+
+  await supabase.from('google_tokens').delete().eq('profesor_id', profesorId);
 }

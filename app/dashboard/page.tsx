@@ -23,6 +23,13 @@ export default async function DashboardPage() {
     .from('horas_falta_por_alumno')
     .select('grupo_id, horas_falta_total');
 
+  const { data: enRiesgo } = await supabase
+    .from('riesgo_por_alumno')
+    .select('nombre, grupo_id, grupo_nombre, porcentaje_falta')
+    .eq('profesor_id', session.user.id)
+    .eq('en_riesgo', true)
+    .order('porcentaje_falta', { ascending: false });
+
   const totalHorasFalta = (horasFalta || []).reduce((acc, r: any) => acc + (r.horas_falta_total || 0), 0);
   const inicial = (session.user.email || 'P')[0].toUpperCase();
 
@@ -32,6 +39,28 @@ export default async function DashboardPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1020px] mx-auto px-8 py-7 pb-14">
           <h2 className="text-xl font-bold mb-5">Resumen</h2>
+
+          {(enRiesgo || []).length > 0 && (
+            <div className="bg-red/10 border border-red/30 rounded-card p-4 mb-6">
+              <div className="text-sm text-red font-semibold mb-2">
+                ⚠️ {enRiesgo!.length} alumno(s) en riesgo por inasistencia
+              </div>
+              <div className="flex flex-col gap-1">
+                {enRiesgo!.slice(0, 6).map((r: any, i: number) => (
+                  <Link
+                    key={i}
+                    href={`/dashboard/grupo/${r.grupo_id}`}
+                    className="text-[12.5px] text-ink hover:underline"
+                  >
+                    {r.nombre} — {r.grupo_nombre} ({r.porcentaje_falta}% de falta)
+                  </Link>
+                ))}
+                {enRiesgo!.length > 6 && (
+                  <span className="text-[11.5px] text-inkSoft">y {enRiesgo!.length - 6} más…</span>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-3.5 mb-8">
             <div className="bg-white border border-border rounded-card p-4">
@@ -66,9 +95,8 @@ export default async function DashboardPage() {
               <Link
                 key={g.id}
                 href={`/dashboard/grupo/${g.id}`}
-                className={`flex items-center justify-between px-4 py-3 text-sm hover:bg-black/[0.02] ${
-                  i > 0 ? 'border-t border-border' : ''
-                }`}
+                className={`flex items-center justify-between px-4 py-3 text-sm hover:bg-black/[0.02] ${i > 0 ? 'border-t border-border' : ''
+                  }`}
               >
                 <span className="font-semibold">{g.nombre}</span>
                 <span className="text-inkSoft">Tomar asistencia →</span>

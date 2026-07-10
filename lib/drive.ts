@@ -165,7 +165,36 @@ export async function eliminarArchivo(accessToken: string, archivoId: string) {
   await drive.files.update({ fileId: archivoId, requestBody: { trashed: true } });
 }
 
-// Descarga los bytes crudos de un archivo (para "guardar localmente" desde el
+// Crea un archivo .xlsx nuevo en Drive con el formato de asistencia
+// (Nombre | Estatus), listo para usarse como grupo — para cuando el
+// profesor no tiene todavía un Excel de asistencia y quiere crear el curso
+// desde cero en vez de tener que "importar" algo primero.
+export async function crearArchivoAsistenciaDesdeCero(
+  accessToken: string,
+  nombre: string,
+  alumnos: string[],
+  carpetaId?: string
+) {
+  const drive = driveClient(accessToken);
+
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Nombre', 'Estatus'],
+    ...alumnos.map((n) => [n, 'asistio'])
+  ]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  const res = await drive.files.create({
+    requestBody: {
+      name: `${nombre}.xlsx`,
+      parents: carpetaId ? [carpetaId] : undefined
+    },
+    media: { mimeType: MIME_XLSX, body: Readable.from(buffer) },
+    fields: 'id, name, mimeType'
+  });
+  return res.data;
+}
 // navegador). Los Google Docs/Sheets/Slides no tienen bytes descargables
 // directos, así que se exportan al formato equivalente de Office.
 export async function descargarArchivo(

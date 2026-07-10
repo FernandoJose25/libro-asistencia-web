@@ -1,25 +1,32 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const item = (href: string, label: string, icon: string, matchExtra?: string) => {
     const activo = pathname === href || (matchExtra ? pathname.startsWith(matchExtra) : false);
     return (
       <Link
         href={href}
-        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm ${
-          activo ? 'bg-navyActive text-gold font-semibold' : 'text-[#a9b3c6] hover:bg-white/5 hover:text-white'
-        }`}
+        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm ${activo ? 'bg-navyActive text-gold font-semibold' : 'text-[#a9b3c6] hover:bg-white/5 hover:text-white'
+          }`}
       >
         <span className="w-4 text-center">{icon}</span>
         {label}
       </Link>
     );
   };
+
+  async function desconectarDrive() {
+    if (!confirm('¿Cerrar sesión de esta cuenta de Google Drive? Vas a tener que volver a conectarla (puedes elegir la misma cuenta u otra distinta).')) return;
+    await fetch('/api/google/disconnect', { method: 'POST' });
+    router.push('/dashboard/conectar-drive');
+    router.refresh();
+  }
 
   return (
     <aside className="w-[250px] shrink-0 bg-navy p-4 flex flex-col text-[#a9b3c6]">
@@ -46,7 +53,13 @@ export function Sidebar() {
         {item('/dashboard/drive', 'Drive', '🗄', '/dashboard/drive')}
       </nav>
 
-      <div className="mt-auto pt-3.5 border-t border-white/10">
+      <div className="mt-auto pt-3.5 border-t border-white/10 flex flex-col gap-0.5">
+        <button
+          onClick={desconectarDrive}
+          className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md text-sm text-[#6d7996] hover:bg-white/5"
+        >
+          <span className="w-4 text-center">🔌</span>Desconectar Drive
+        </button>
         <form action="/auth/signout" method="post">
           <button className="flex items-center gap-2.5 w-full text-left px-2.5 py-2 rounded-md text-sm text-[#6d7996] hover:bg-white/5">
             <span className="w-4 text-center">⏻</span>Salir
