@@ -11,8 +11,8 @@ export function GroupTabs({ grupos }: { grupos: Grupo[] }) {
     return (
       <div className="px-6 py-3 border-b border-border bg-white text-sm text-inkSoft">
         Aún no tienes grupos conectados.{' '}
-        <Link href="/dashboard/import" className="text-goldDark font-semibold">
-          Importar de Drive
+        <Link href="/dashboard/drive" className="text-goldDark font-semibold">
+          Ir al explorador de Drive
         </Link>
       </div>
     );

@@ -35,6 +35,10 @@ export function AttendanceClient({
   const [dirty, setDirty] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [online, setOnline] = useState(true);
+  const [gestionando, setGestionando] = useState(false);
+  const [nuevoAlumno, setNuevoAlumno] = useState('');
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [nombreEdit, setNombreEdit] = useState('');
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -57,6 +61,50 @@ export function AttendanceClient({
   function cambiarHoras(h: 1 | 2) {
     setHoras(h);
     setDirty(true);
+  }
+
+  async function agregarAlumno() {
+    const nombre = nuevoAlumno.trim();
+    if (!nombre) return;
+    const orden = filas.length;
+    const { data, error } = await supabase
+      .from('alumnos')
+      .insert({ grupo_id: grupoId, nombre, orden })
+      .select('id, grupo_id, nombre, orden')
+      .single();
+    if (error || !data) return;
+    setFilas((prev) => [...prev, { alumno: data, estatus: 'falto' }]);
+    setNuevoAlumno('');
+  }
+
+  function empezarEdicion(alumno: Alumno) {
+    setEditandoId(alumno.id);
+    setNombreEdit(alumno.nombre);
+  }
+
+  async function guardarNombre(alumnoId: string) {
+    const nombre = nombreEdit.trim();
+    setEditandoId(null);
+    if (!nombre) return;
+    await supabase.from('alumnos').update({ nombre }).eq('id', alumnoId);
+    setFilas((prev) => prev.map((f) => (f.alumno.id === alumnoId ? { ...f, alumno: { ...f.alumno, nombre } } : f)));
+  }
+
+  async function eliminarAlumno(alumnoId: string) {
+    if (!confirm('¿Eliminar a este alumno? También se borra su historial de asistencia.')) return;
+    await supabase.from('alumnos').delete().eq('id', alumnoId);
+    setFilas((prev) => prev.filter((f) => f.alumno.id !== alumnoId));
+  }
+
+  async function moverAlumno(index: number, direccion: -1 | 1) {
+    const destino = index + direccion;
+    if (destino < 0 || destino >= filas.length) return;
+    const copia = [...filas];
+    [copia[index], copia[destino]] = [copia[destino], copia[index]];
+    setFilas(copia);
+    await Promise.all(
+      copia.map((f, i) => supabase.from('alumnos').update({ orden: i }).eq('id', f.alumno.id))
+    );
   }
 
   async function guardarEnSupabase() {
@@ -126,6 +174,14 @@ export function AttendanceClient({
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2.5">
           <h2 className="text-xl font-bold">{grupoNombre}</h2>
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={() => setGestionando((v) => !v)}
+              className={`px-3.5 py-2 rounded-md border text-sm font-semibold ${
+                gestionando ? 'bg-navy border-navy text-white' : 'border-border text-inkSoft'
+              }`}
+            >
+              👥 Gestionar alumnos
+            </button>
             <SyncButton estado={estadoSync} onSync={sincronizarTodo} />
           </div>
         </div>
@@ -149,15 +205,72 @@ export function AttendanceClient({
         </div>
 
         <div className="bg-white border border-border rounded-card overflow-hidden">
-          <div className="grid grid-cols-[1fr_300px] px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border">
+          <div className={`grid ${gestionando ? 'grid-cols-[24px_1fr_300px_84px]' : 'grid-cols-[1fr_300px]'} px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border`}>
+            {gestionando && <span />}
             <span>Alumno</span><span>Asistencia</span>
+            {gestionando && <span>Acciones</span>}
           </div>
-          {filas.map((f) => (
-            <div key={f.alumno.id} className="grid grid-cols-[1fr_300px] items-center px-4 py-2.5 border-b border-border last:border-b-0">
-              <span className="text-sm">{f.alumno.nombre}</span>
+          {filas.map((f, i) => (
+            <div
+              key={f.alumno.id}
+              className={`grid ${gestionando ? 'grid-cols-[24px_1fr_300px_84px]' : 'grid-cols-[1fr_300px]'} items-center px-4 py-2.5 border-b border-border last:border-b-0`}
+            >
+              {gestionando && (
+                <div className="flex flex-col text-inkSoft text-[10px] leading-none">
+                  <button onClick={() => moverAlumno(i, -1)} disabled={i === 0} className="disabled:opacity-20">▲</button>
+                  <button onClick={() => moverAlumno(i, 1)} disabled={i === filas.length - 1} className="disabled:opacity-20">▼</button>
+                </div>
+              )}
+
+              {editandoId === f.alumno.id ? (
+                <input
+                  autoFocus
+                  value={nombreEdit}
+                  onChange={(e) => setNombreEdit(e.target.value)}
+                  onBlur={() => guardarNombre(f.alumno.id)}
+                  onKeyDown={(e) => e.key === 'Enter' && guardarNombre(f.alumno.id)}
+                  className="text-sm border border-gold rounded px-2 py-1 w-full max-w-[260px]"
+                />
+              ) : (
+                <span
+                  className={`text-sm ${gestionando ? 'cursor-text hover:underline' : ''}`}
+                  onClick={() => gestionando && empezarEdicion(f.alumno)}
+                >
+                  {f.alumno.nombre}
+                </span>
+              )}
+
               <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
+
+              {gestionando && (
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => empezarEdicion(f.alumno)} title="Renombrar" className="text-inkSoft hover:text-ink">✎</button>
+                  <button onClick={() => eliminarAlumno(f.alumno.id)} title="Eliminar" className="text-red">🗑</button>
+                </div>
+              )}
             </div>
           ))}
+
+          {gestionando && (
+            <div className="flex gap-2 items-center px-4 py-3 bg-bg/60">
+              <input
+                value={nuevoAlumno}
+                onChange={(e) => setNuevoAlumno(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && agregarAlumno()}
+                placeholder="Nombre del nuevo alumno…"
+                className="flex-1 text-sm border border-border rounded-md px-3 py-2"
+              />
+              <button onClick={agregarAlumno} className="px-4 py-2 rounded-md bg-navy text-white text-sm font-semibold">
+                + Agregar
+              </button>
+            </div>
+          )}
+
+          {filas.length === 0 && !gestionando && (
+            <div className="px-4 py-6 text-sm text-inkSoft text-center">
+              Este grupo no tiene alumnos todavía. Click en "Gestionar alumnos" para agregarlos.
+            </div>
+          )}
         </div>
 
         <div className="text-xs text-inkSoft mt-3">

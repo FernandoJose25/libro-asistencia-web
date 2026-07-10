@@ -15,5 +15,5 @@ export default async function GrupoIndexPage() {
     .limit(1);
 
   if (grupos && grupos.length > 0) redirect(`/dashboard/grupo/${grupos[0].id}`);
-  redirect('/dashboard/import');
+  redirect('/dashboard/drive');
 }
