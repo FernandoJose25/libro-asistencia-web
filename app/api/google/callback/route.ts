@@ -8,16 +8,16 @@ export async function GET(request: Request) {
   const error = searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(`${origin}/dashboard?drive_error=${encodeURIComponent(error)}`);
+    return NextResponse.redirect(`${origin}/dashboard/conectar-drive?drive_error=${encodeURIComponent(error)}`);
   }
   if (!code || !profesorId) {
-    return NextResponse.redirect(`${origin}/dashboard?drive_error=faltan_datos`);
+    return NextResponse.redirect(`${origin}/dashboard/conectar-drive?drive_error=faltan_datos`);
   }
 
   try {
     await guardarTokenDesdeCodigo(profesorId, code);
   } catch (e: any) {
-    return NextResponse.redirect(`${origin}/dashboard?drive_error=${encodeURIComponent(e.message || 'desconocido')}`);
+    return NextResponse.redirect(`${origin}/dashboard/conectar-drive?drive_error=${encodeURIComponent(e.message || 'desconocido')}`);
   }
 
   return NextResponse.redirect(`${origin}/dashboard/drive`);

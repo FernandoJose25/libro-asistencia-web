@@ -53,12 +53,21 @@ export async function guardarTokenDesdeCodigo(profesorId: string, code: string) 
   }
 
   const supabase = supabaseServer();
-  await supabase.from('google_tokens').upsert({
+  const { error } = await supabase.from('google_tokens').upsert({
     profesor_id: profesorId,
     refresh_token: tokens.refresh_token,
     scope: tokens.scope || null,
     updated_at: new Date().toISOString()
   });
+
+  if (error) {
+    // Antes esto se ignoraba en silencio: si la base de datos rechazaba el
+    // guardado (ej. por una política de seguridad RLS), el flujo seguía
+    // como si hubiera funcionado y el profesor terminaba en un loop
+    // infinito viendo "Conecta tu Google Drive" una y otra vez, sin ningún
+    // mensaje. Ahora se propaga el error real para poder verlo y arreglarlo.
+    throw new Error(`No se pudo guardar el token en la base de datos: ${error.message}`);
+  }
 }
 
 // Devuelve un access_token fresco para el profesor, renovándolo con su
