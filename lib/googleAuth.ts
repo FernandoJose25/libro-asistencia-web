@@ -107,12 +107,33 @@ export async function tieneDriveConectado(profesorId: string): Promise<boolean> 
 }
 
 // Cierra sesión de la cuenta de Drive conectada: le avisa a Google que ya no
-// queremos el token (revoke) y borra el refresh_token guardado. Después de
-// esto, el profesor vuelve a ver la pantalla "Conecta tu Google Drive" y, al
-// conectar de nuevo, Google le muestra el selector de cuentas — puede volver
-// a elegir la misma cuenta o una distinta.
+// queremos el token (revoke), borra TODO lo que se sincronizó de ese Drive
+// (grupos, alumnos y asistencias — nada se queda guardado) y borra el
+// refresh_token guardado. Los archivos reales en el Drive del profesor NUNCA
+// se tocan: al volver a conectar, el explorador de Drive los va a mostrar
+// tal cual estaban, listos para "convertir a grupo" de nuevo.
 export async function desconectarDrive(profesorId: string): Promise<void> {
   const supabase = supabaseServer();
+
+  // 1) Borrar todo lo sincronizado de Drive para este profesor.
+  //    alumnos y registros_asistencia tienen "on delete cascade" hacia
+  //    grupos/alumnos, así que basta con borrar los grupos.
+  const { data: grupos } = await supabase.from('grupos').select('id').eq('profesor_id', profesorId);
+  const grupoIds = (grupos || []).map((g) => g.id);
+
+  if (grupoIds.length > 0) {
+    // sesiones_qr no tiene FK con cascade garantizado — se borra aparte y
+    // sin frenar el resto si la tabla no existe o falla.
+    try {
+      await supabase.from('sesiones_qr').delete().in('grupo_id', grupoIds);
+    } catch {
+      // no bloquear la desconexión por esto
+    }
+  }
+
+  await supabase.from('grupos').delete().eq('profesor_id', profesorId);
+
+  // 2) Revocar el token con Google y borrar nuestro registro.
   const { data } = await supabase
     .from('google_tokens')
     .select('refresh_token')
