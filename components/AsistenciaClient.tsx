@@ -86,6 +86,7 @@ export function AsistenciaClient({
   const [guardando, setGuardando] = useState(false);
   const [online, setOnline] = useState(true);
   const [cargando, setCargando] = useState(false);
+  const [errorSync, setErrorSync] = useState('');
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -176,16 +177,21 @@ export function AsistenciaClient({
   }
 
   async function guardarEnSupabase() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No hay sesión activa');
+
     const registros = filas.map((f) => ({
       alumno_id: f.alumno.id,
       grupo_id: grupoId,
+      profesor_id: user.id,
       fecha,
       clase,
       estatus: f.estatus,
       marcado_en: f.marcadoEn || new Date().toISOString(),
       justificada: f.estatus === 'falto' ? f.justificada : false
     }));
-    await supabase.from('asistencia_registros').upsert(registros, { onConflict: 'alumno_id,fecha,clase' });
+    const { error } = await supabase.from('asistencia_registros').upsert(registros, { onConflict: 'alumno_id,fecha,clase' });
+    if (error) throw new Error(`No se pudo guardar en la base de datos: ${error.message}`);
   }
 
   async function sincronizarConDrive() {
@@ -199,10 +205,13 @@ export function AsistenciaClient({
   async function sincronizarTodo() {
     if (!navigator.onLine) return;
     setGuardando(true);
+    setErrorSync('');
     try {
       await guardarEnSupabase();
       await sincronizarConDrive();
       setDirty(false);
+    } catch (e: any) {
+      setErrorSync(e.message || 'No se pudo sincronizar.');
     } finally {
       setGuardando(false);
     }
@@ -236,6 +245,12 @@ export function AsistenciaClient({
           <h2 className="text-xl font-bold">{grupoNombre}</h2>
           <SyncButton estado={estadoSync} onSync={sincronizarTodo} />
         </div>
+
+        {errorSync && (
+          <div className="mt-3 mb-1 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5 text-sm text-red">
+            ⚠️ {errorSync}
+          </div>
+        )}
 
         {enRiesgoCount > 0 && (
           <div className="flex items-center justify-between gap-2 mt-3 mb-1 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5">
