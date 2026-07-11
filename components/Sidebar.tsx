@@ -49,7 +49,7 @@ export function Sidebar() {
 
       <div className="text-[10px] uppercase tracking-wider text-[#6d7996] px-2.5 pb-1.5 pt-3">Contenido</div>
       <nav className="flex flex-col gap-0.5">
-        {item('/dashboard/grupo', 'Grupos', '🗂', '/dashboard/grupo')}
+        {item('/dashboard/asistencia', 'Asistencia', '🗓', '/dashboard/asistencia')}
         {item('/dashboard/alumnos', 'Alumnos', '🎓', '/dashboard/alumnos')}
         {item('/dashboard/drive', 'Drive', '🗄', '/dashboard/drive')}
       </nav>

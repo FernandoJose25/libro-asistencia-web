@@ -7,7 +7,6 @@ import { Alumno, Estatus } from '@/lib/types';
 import { sanitizarNombreArchivo } from '@/lib/utils';
 import { StatusPillGroup } from './StatusPill';
 import { SyncButton } from './SyncButton';
-import { QrButton } from './QrButton';
 import { AiSummaryButton } from './AiSummaryButton';
 import { AttendanceHeatmap } from './AttendanceHeatmap';
 
@@ -210,7 +209,6 @@ export function AttendanceClient({
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2.5">
           <h2 className="text-xl font-bold">{grupoNombre}</h2>
           <div className="flex items-center gap-2.5 flex-wrap">
-            <QrButton grupoId={grupoId} horas={horas} />
             <button
               onClick={() => setGestionando((v) => !v)}
               className={`px-3.5 py-2 rounded-md border text-sm font-semibold ${gestionando ? 'bg-navy border-navy text-white' : 'border-border text-inkSoft'

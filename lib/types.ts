@@ -30,3 +30,16 @@ export interface FilaAsistencia {
   estatus: Estatus;
   dirty: boolean;
 }
+
+// Registro de la sección "Asistencia" (independiente de RegistroAsistencia,
+// que pertenece a la vista clásica de Grupos). Permite 2 clases el mismo día.
+export interface AsistenciaRegistro {
+  id?: string;
+  alumno_id: string;
+  grupo_id: string;
+  fecha: string; // YYYY-MM-DD
+  clase: 1 | 2;
+  estatus: Estatus;
+  marcado_en: string; // ISO timestamp
+  justificada: boolean;
+}

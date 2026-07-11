@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { Topbar } from '@/components/Topbar';
 import { AlumnosReportTable, type DetalleFechas, type FilaReporteAlumno } from '@/components/AlumnosReportTable';
+import { GestionAlumnosGrupo } from '@/components/GestionAlumnosGrupo';
 
 export default async function AlumnosPage() {
     const supabase = supabaseServer();
@@ -44,6 +45,23 @@ export default async function AlumnosPage() {
     const enRiesgo = filas.filter((f) => f.horas_falta_restantes <= 0).length;
     const inicial = (session.user.email || 'P')[0].toUpperCase();
 
+    // Gestión de grupos/alumnos: todos los grupos del profesor (activos e
+    // inactivos), con sus alumnos, para crear/editar/reordenar desde aquí.
+    const { data: gruposTodos } = await supabase
+        .from('grupos')
+        .select('id, nombre, activo, umbral_falta_porcentaje')
+        .order('nombre');
+
+    const { data: alumnosTodos } = await supabase
+        .from('alumnos')
+        .select('id, grupo_id, nombre, orden')
+        .order('orden');
+
+    const gruposConAlumnos = (gruposTodos || []).map((g) => ({
+        ...g,
+        alumnos: (alumnosTodos || []).filter((a) => a.grupo_id === g.id)
+    }));
+
     return (
         <>
             <Topbar breadcrumb="Alumnos" inicial={inicial} />
@@ -56,13 +74,11 @@ export default async function AlumnosPage() {
                         Reporte de asistencia de todos tus alumnos, con las fechas exactas de cada falta y tardanza.
                     </p>
 
+                    <GestionAlumnosGrupo grupos={gruposConAlumnos} />
+
                     {filas.length === 0 ? (
                         <div className="bg-white border border-border rounded-card p-5 text-sm text-inkSoft">
-                            Todavía no hay alumnos registrados. Ve a{' '}
-                            <a href="/dashboard/grupo" className="text-goldDark font-semibold">
-                                Grupos
-                            </a>{' '}
-                            para importar tu lista desde Drive.
+                            Todavía no hay alumnos registrados. Crea un grupo arriba y agrégale alumnos.
                         </div>
                     ) : (
                         <>
