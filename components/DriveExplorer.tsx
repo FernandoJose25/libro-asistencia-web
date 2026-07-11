@@ -168,17 +168,17 @@ export function DriveExplorer({ carpetaInicial }: { carpetaInicial?: string }) {
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="px-8 py-6 pb-14">
+      <div className="px-4 md:px-8 py-5 md:py-6 pb-14">
         <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <form onSubmit={buscar} className="flex items-center gap-2">
+          <form onSubmit={buscar} className="flex items-center gap-2 w-full sm:w-auto">
             <input
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar en Drive…"
-              className="px-3 py-2 border border-border rounded-md text-sm w-64"
+              className="px-3 py-2 border border-border rounded-md text-sm w-full sm:w-64"
             />
           </form>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <input
               ref={inputArchivoRef}
               type="file"
@@ -249,8 +249,8 @@ export function DriveExplorer({ carpetaInicial }: { carpetaInicial?: string }) {
       </div>
 
       {seleccionado && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setSeleccionado(null)}>
-          <div className="bg-white rounded-xl p-6 w-[380px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setSeleccionado(null)}>
+          <div className="bg-white rounded-xl p-6 w-full max-w-[380px] max-h-[85vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="text-3xl mb-2">{iconoPara(seleccionado)}</div>
             <h3 className="font-bold mb-1 break-words">{seleccionado.nombre}</h3>
             <p className="text-xs text-inkSoft mb-4">{seleccionado.mimeType}</p>

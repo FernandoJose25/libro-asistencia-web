@@ -32,7 +32,7 @@ export default async function GruposPage() {
         <>
             <Topbar breadcrumb="Grupos" inicial={inicial} />
             <div className="flex-1 overflow-y-auto">
-                <div className="max-w-[1020px] mx-auto px-8 py-7 pb-14">
+                <div className="max-w-[1020px] mx-auto px-4 md:px-8 py-5 md:py-7 pb-14">
                     <div className="flex items-center justify-between mb-1">
                         <h2 className="text-xl font-bold">Grupos</h2>
                     </div>

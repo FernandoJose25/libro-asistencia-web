@@ -17,8 +17,8 @@ export default async function ConectarDrivePage({
   const error = searchParams.drive_error;
 
   return (
-    <section className="min-h-screen flex items-center justify-center bg-bg">
-      <div className="bg-white rounded-xl p-10 w-[420px] text-center shadow-2xl border border-border">
+    <section className="min-h-screen flex items-center justify-center bg-bg p-4">
+      <div className="bg-white rounded-xl p-6 sm:p-10 w-full max-w-[420px] text-center shadow-2xl border border-border">
         <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gold to-goldDark flex items-center justify-center text-2xl">
           🔗
         </div>

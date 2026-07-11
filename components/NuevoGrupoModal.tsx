@@ -37,8 +37,8 @@ export function NuevoGrupoModal() {
             </button>
 
             {abierto && (
-                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={() => setAbierto(false)}>
-                    <div className="bg-white rounded-xl p-6 w-[420px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={() => setAbierto(false)}>
+                    <div className="bg-white rounded-xl p-6 w-full max-w-[420px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         <h3 className="font-bold mb-1">Nuevo grupo de asistencia</h3>
                         <p className="text-xs text-inkSoft mb-4">
                             Se crea un Excel nuevo en tu Drive (raíz de "Mi unidad") y el grupo queda listo para agregarle alumnos.

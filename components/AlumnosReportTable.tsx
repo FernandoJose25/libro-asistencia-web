@@ -75,17 +75,17 @@ export function AlumnosReportTable({
 
     return (
         <div>
-            <div className="flex items-center gap-2.5 mb-4">
+            <div className="flex items-center gap-2.5 mb-4 flex-wrap">
                 <input
                     value={busqueda}
                     onChange={(e) => setBusqueda(e.target.value)}
                     placeholder="Buscar alumno…"
-                    className="px-3 py-2 border border-border rounded-md text-sm w-[220px]"
+                    className="px-3 py-2 border border-border rounded-md text-sm w-full sm:w-[220px]"
                 />
                 <select
                     value={grupoFiltro}
                     onChange={(e) => setGrupoFiltro(e.target.value)}
-                    className="px-3 py-2 border border-border rounded-md text-sm bg-white"
+                    className="px-3 py-2 border border-border rounded-md text-sm bg-white flex-1 sm:flex-none min-w-0"
                 >
                     <option value="todos">Todos los grupos</option>
                     {grupos.map((g) => (
@@ -94,12 +94,13 @@ export function AlumnosReportTable({
                         </option>
                     ))}
                 </select>
-                <span className="text-[12.5px] text-inkSoft ml-auto">
+                <span className="text-[12.5px] text-inkSoft sm:ml-auto">
                     {filtradas.length} alumno{filtradas.length === 1 ? '' : 's'}
                 </span>
             </div>
 
-            <div className="bg-white border border-border rounded-card overflow-hidden">
+            <div className="bg-white border border-border rounded-card overflow-x-auto">
+                <div className="min-w-[640px]">
                 <div className="grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
                     <div>Nro</div>
                     <div>Alumno</div>
@@ -176,6 +177,7 @@ export function AlumnosReportTable({
                         </div>
                     );
                 })}
+                </div>
             </div>
 
             <p className="text-[11.5px] text-inkSoft mt-3">

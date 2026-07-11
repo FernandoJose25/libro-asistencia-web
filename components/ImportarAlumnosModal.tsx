@@ -107,8 +107,8 @@ export function ImportarAlumnosModal({ grupos }: { grupos: GrupoOpcion[] }) {
       </button>
 
       {abierto && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={cerrar}>
-          <div className="bg-white rounded-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4" onClick={cerrar}>
+          <div className="bg-white rounded-xl p-5 sm:p-6 w-full max-w-[560px] max-h-[85vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-bold mb-1">Importar alumnos desde Excel</h3>
             <p className="text-xs text-inkSoft mb-4">
               Reconoce columnas <strong>Nro, Apellidos, Nombres y Grupo</strong> en cualquier orden. Si el archivo no
@@ -160,7 +160,8 @@ export function ImportarAlumnosModal({ grupos }: { grupos: GrupoOpcion[] }) {
                   </div>
                 )}
 
-                <div className="border border-border rounded-md overflow-hidden mb-3 max-h-[240px] overflow-y-auto">
+                <div className="border border-border rounded-md mb-3 max-h-[240px] overflow-auto">
+                  <div className="min-w-[420px]">
                   <div className="grid grid-cols-[40px_1fr_1fr_1fr] gap-2 px-3 py-1.5 text-[10px] uppercase text-inkSoft bg-bg/60 border-b border-border sticky top-0">
                     <div>Nro</div>
                     <div>Apellidos</div>
@@ -175,6 +176,7 @@ export function ImportarAlumnosModal({ grupos }: { grupos: GrupoOpcion[] }) {
                       <div className="text-inkSoft">{f.grupoNombre || '(por defecto)'}</div>
                     </div>
                   ))}
+                  </div>
                 </div>
               </>
             )}

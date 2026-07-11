@@ -27,8 +27,8 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="min-h-screen flex items-center justify-center bg-navy">
-      <form onSubmit={iniciarSesion} className="bg-white rounded-xl p-10 w-[380px] text-center shadow-2xl">
+    <section className="min-h-screen flex items-center justify-center bg-navy p-4">
+      <form onSubmit={iniciarSesion} className="bg-white rounded-xl p-6 sm:p-10 w-full max-w-[380px] text-center shadow-2xl">
         <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gold to-goldDark flex items-center justify-center text-2xl">
           📋
         </div>

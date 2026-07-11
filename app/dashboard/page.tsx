@@ -38,8 +38,8 @@ export default async function DashboardPage() {
     <>
       <Topbar breadcrumb="Dashboard" inicial={inicial} />
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1020px] mx-auto px-8 py-7 pb-14">
-          <div className="flex items-center justify-between mb-5">
+        <div className="max-w-[1020px] mx-auto px-4 md:px-8 py-5 md:py-7 pb-14">
+          <div className="flex items-center justify-between gap-3 flex-wrap mb-5">
             <h2 className="text-xl font-bold">Resumen</h2>
             <AsistenciaHoyButton primerGrupoId={grupos && grupos.length > 0 ? grupos[0].id : null} />
           </div>
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3.5 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-8">
             <div className="bg-white border border-border rounded-card p-4">
               <div className="text-[11px] uppercase tracking-wide text-inkSoft mb-2">Grupos</div>
               <div className="text-2xl font-bold">{grupos?.length ?? 0}</div>
