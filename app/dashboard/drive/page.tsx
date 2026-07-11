@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabaseServer';
 import { tieneDriveConectado } from '@/lib/googleAuth';
 import { Topbar } from '@/components/Topbar';
 import { DriveExplorer } from '@/components/DriveExplorer';
+import { MigrarAsistenciaButton } from '@/components/MigrarAsistenciaButton';
 
 export default async function DrivePage() {
   const supabase = supabaseServer();
@@ -17,6 +18,9 @@ export default async function DrivePage() {
   return (
     <>
       <Topbar breadcrumb="Archivos / Mi Drive" inicial={inicial} />
+      <div className="px-6 pt-4">
+        <MigrarAsistenciaButton />
+      </div>
       <DriveExplorer />
     </>
   );

@@ -2,12 +2,12 @@ import { Readable } from 'stream';
 import * as XLSX from 'xlsx';
 import { driveClient, MIME_FOLDER, MIME_XLSX } from './drive';
 
-// Todo lo necesario para la sección "Asistencia": guarda cada toma de
-// asistencia en Google Drive respetando la ruta
-// ASISTENCIA/<dd-mm-aaaa>/[Clase N/]<Grupo>.xlsx — "buscar o crear" en cada
-// nivel para no duplicar carpetas ni archivos al reingresar el mismo día.
+// Todo lo necesario para la sección "Asistencia"/"Grupos": cada grupo es una
+// carpeta en Drive, y guarda cada toma de asistencia respetando la ruta
+// GRUPOS/<Grupo>/<dd-mm-aaaa>/Clase N.xlsx — "buscar o crear" en cada nivel
+// para no duplicar carpetas ni archivos al reingresar el mismo día.
 
-async function buscarOCrearCarpeta(accessToken: string, nombre: string, padreId?: string) {
+export async function buscarOCrearCarpeta(accessToken: string, nombre: string, padreId?: string) {
   const drive = driveClient(accessToken);
   const padre = padreId || 'root';
   const nombreEscapado = nombre.replace(/'/g, "\\'");
@@ -66,20 +66,99 @@ async function buscarOEscribirExcel(
   return creado.data.id as string;
 }
 
+// Crea (o reutiliza) la carpeta GRUPOS/<nombreGrupo> — se llama una vez al
+// crear el grupo desde la sección Grupos.
+export async function crearCarpetaGrupo(accessToken: string, nombreGrupo: string) {
+  const carpetaGrupos = await buscarOCrearCarpeta(accessToken, 'GRUPOS');
+  return buscarOCrearCarpeta(accessToken, nombreGrupo, carpetaGrupos);
+}
+
 export async function sincronizarAsistenciaADrive(
   accessToken: string,
   opciones: {
-    grupoNombreArchivo: string; // ya sanitizado con sanitizarNombreArchivo
+    grupoNombre: string; // ya sanitizado con sanitizarNombreArchivo
+    carpetaGrupoId?: string | null; // si ya se conoce, evita rebuscar GRUPOS/<Grupo>
     fechaCarpeta: string; // dd-mm-aaaa
-    clase: 1 | 2 | null; // null = una sola clase ese día, sin subcarpeta "Clase N"
+    clase: 1 | 2;
     filas: { nombre: string; estatus: string; fecha: string; hora: string }[];
   }
 ) {
-  const carpetaAsistencia = await buscarOCrearCarpeta(accessToken, 'ASISTENCIA');
-  const carpetaFecha = await buscarOCrearCarpeta(accessToken, opciones.fechaCarpeta, carpetaAsistencia);
-  const carpetaDestino = opciones.clase
-    ? await buscarOCrearCarpeta(accessToken, `Clase ${opciones.clase}`, carpetaFecha)
-    : carpetaFecha;
+  const carpetaGrupo =
+    opciones.carpetaGrupoId || (await crearCarpetaGrupo(accessToken, opciones.grupoNombre));
+  const carpetaFecha = await buscarOCrearCarpeta(accessToken, opciones.fechaCarpeta, carpetaGrupo);
 
-  return buscarOEscribirExcel(accessToken, `${opciones.grupoNombreArchivo}.xlsx`, carpetaDestino, opciones.filas);
+  const archivoId = await buscarOEscribirExcel(
+    accessToken,
+    `Clase ${opciones.clase}.xlsx`,
+    carpetaFecha,
+    opciones.filas
+  );
+
+  return { archivoId, carpetaGrupoId: carpetaGrupo };
+}
+
+// Mueve todo lo que haya bajo ASISTENCIA/<fecha>/Clase N/<Grupo>.xlsx hacia
+// GRUPOS/<Grupo>/<fecha>/Clase N.xlsx — solo se dispara manualmente desde un
+// botón en Drive, nunca de forma automática (mueve archivos reales del
+// profesor). Devuelve cuántos archivos movió, para mostrar un resumen.
+export async function migrarAsistenciaAGrupos(accessToken: string): Promise<{ movidos: number; errores: string[] }> {
+  const drive = driveClient(accessToken);
+  const errores: string[] = [];
+  let movidos = 0;
+
+  const raiz = await drive.files.list({
+    q: `'root' in parents and name = 'ASISTENCIA' and mimeType = '${MIME_FOLDER}' and trashed = false`,
+    fields: 'files(id, name)',
+    pageSize: 1
+  });
+  const carpetaAsistencia = raiz.data.files?.[0];
+  if (!carpetaAsistencia?.id) return { movidos: 0, errores: [] };
+
+  const fechas = await drive.files.list({
+    q: `'${carpetaAsistencia.id}' in parents and mimeType = '${MIME_FOLDER}' and trashed = false`,
+    fields: 'files(id, name)',
+    pageSize: 1000
+  });
+
+  for (const carpetaFecha of fechas.data.files || []) {
+    if (!carpetaFecha.id || !carpetaFecha.name) continue;
+
+    const clases = await drive.files.list({
+      q: `'${carpetaFecha.id}' in parents and mimeType = '${MIME_FOLDER}' and trashed = false`,
+      fields: 'files(id, name)',
+      pageSize: 10
+    });
+
+    for (const carpetaClase of clases.data.files || []) {
+      if (!carpetaClase.id || !carpetaClase.name) continue;
+      const clase = carpetaClase.name.replace(/\D/g, '') || '1';
+
+      const archivos = await drive.files.list({
+        q: `'${carpetaClase.id}' in parents and trashed = false`,
+        fields: 'files(id, name)',
+        pageSize: 1000
+      });
+
+      for (const archivo of archivos.data.files || []) {
+        if (!archivo.id || !archivo.name) continue;
+        const nombreGrupo = archivo.name.replace(/\.xlsx$/i, '');
+        try {
+          const carpetaGrupo = await crearCarpetaGrupo(accessToken, nombreGrupo);
+          const carpetaFechaDestino = await buscarOCrearCarpeta(accessToken, carpetaFecha.name, carpetaGrupo);
+
+          await drive.files.update({
+            fileId: archivo.id,
+            addParents: carpetaFechaDestino,
+            removeParents: carpetaClase.id
+          });
+          await drive.files.update({ fileId: archivo.id, requestBody: { name: `Clase ${clase}.xlsx` } });
+          movidos++;
+        } catch (e: any) {
+          errores.push(`${nombreGrupo} (${carpetaFecha.name}, clase ${clase}): ${e.message || 'error desconocido'}`);
+        }
+      }
+    }
+  }
+
+  return { movidos, errores };
 }
