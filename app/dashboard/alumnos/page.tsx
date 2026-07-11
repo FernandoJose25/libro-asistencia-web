@@ -46,6 +46,11 @@ export default async function AlumnosPage() {
     const enRiesgo = filas.filter((f) => f.horas_falta_restantes <= 0).length;
     const inicial = (session.user.email || 'P')[0].toUpperCase();
 
+    // Distingue "no tienes grupos" de "tus grupos existen pero están vacíos",
+    // para no mandar al profesor a "crear un curso" cuando ya lo creó y solo
+    // le falta agregar alumnos dentro.
+    const { count: totalGrupos } = await supabase.from('grupos').select('id', { count: 'exact', head: true });
+
     return (
         <>
             <Topbar breadcrumb="Alumnos" inicial={inicial} />
@@ -60,11 +65,23 @@ export default async function AlumnosPage() {
 
                     {filas.length === 0 ? (
                         <div className="bg-white border border-border rounded-card p-5 text-sm text-inkSoft">
-                            Todavía no hay alumnos registrados. Ve a{' '}
-                            <Link href="/dashboard/grupos" className="text-goldDark font-semibold">
-                                Grupos
-                            </Link>{' '}
-                            para crear un curso y agregarle alumnos.
+                            {totalGrupos && totalGrupos > 0 ? (
+                                <>
+                                    Ya tienes {totalGrupos} grupo(s) creado(s), pero todavía no tienen alumnos. Ve a{' '}
+                                    <Link href="/dashboard/grupos" className="text-goldDark font-semibold">
+                                        Grupos
+                                    </Link>
+                                    , abre cada curso con la flechita y agrega sus alumnos con "+ Agregar".
+                                </>
+                            ) : (
+                                <>
+                                    Todavía no hay alumnos registrados. Ve a{' '}
+                                    <Link href="/dashboard/grupos" className="text-goldDark font-semibold">
+                                        Grupos
+                                    </Link>{' '}
+                                    para crear un curso y agregarle alumnos.
+                                </>
+                            )}
                         </div>
                     ) : (
                         <>
