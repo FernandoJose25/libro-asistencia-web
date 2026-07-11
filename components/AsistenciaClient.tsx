@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno, Estatus } from '@/lib/types';
 import { sanitizarNombreArchivo } from '@/lib/utils';
@@ -66,11 +67,9 @@ export function AsistenciaClient({
   const supabase = supabaseBrowser();
   const nombreArchivoBase = sanitizarNombreArchivo(grupoNombre);
 
-  const [umbral, setUmbral] = useState(umbralInicial);
-  const [horasClaseSemana, setHorasClaseSemana] = useState(horasClaseSemanaInicial);
-  const [faltasPermitidasSemestre, setFaltasPermitidasSemestre] = useState(faltasPermitidasSemestreInicial);
-  const [editandoConfig, setEditandoConfig] = useState(false);
-  const [guardandoConfig, setGuardandoConfig] = useState(false);
+  const umbral = umbralInicial;
+  const horasClaseSemana = horasClaseSemanaInicial;
+  const faltasPermitidasSemestre = faltasPermitidasSemestreInicial;
 
   const [fecha, setFecha] = useState(hoyISO());
   const [clase, setClase] = useState<1 | 2>(1);
@@ -161,21 +160,6 @@ export function AsistenciaClient({
     setDirty(true);
   }
 
-  async function guardarConfig() {
-    setGuardandoConfig(true);
-    const res = await fetch(`/api/grupos/${grupoId}/config`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        umbralFaltaPorcentaje: umbral,
-        horasClaseSemana,
-        faltasPermitidasSemestre
-      })
-    });
-    setGuardandoConfig(false);
-    if (res.ok) setEditandoConfig(false);
-  }
-
   async function guardarEnSupabase() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No hay sesión activa');
@@ -261,50 +245,12 @@ export function AsistenciaClient({
         )}
 
         <div className="flex items-center gap-2 mb-2 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap mt-3">
-          {editandoConfig ? (
-            <>
-              <span className="text-[11.5px] text-inkSoft">Umbral de riesgo:</span>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={umbral}
-                onChange={(e) => setUmbral(Number(e.target.value))}
-                className="w-16 text-xs border border-border rounded px-2 py-1"
-              />
-              <span className="text-[11.5px] text-inkSoft">%</span>
-
-              <span className="text-[11.5px] text-inkSoft ml-3">Horas de clase/semana:</span>
-              <input
-                type="number"
-                min={0}
-                value={horasClaseSemana}
-                onChange={(e) => setHorasClaseSemana(Number(e.target.value))}
-                className="w-16 text-xs border border-border rounded px-2 py-1"
-              />
-
-              <span className="text-[11.5px] text-inkSoft ml-3">Faltas permitidas/semestre:</span>
-              <input
-                type="number"
-                min={0}
-                value={faltasPermitidasSemestre}
-                onChange={(e) => setFaltasPermitidasSemestre(Number(e.target.value))}
-                className="w-16 text-xs border border-border rounded px-2 py-1"
-              />
-
-              <button
-                onClick={guardarConfig}
-                disabled={guardandoConfig}
-                className="text-[11.5px] px-2 py-1 rounded bg-navy text-white font-semibold ml-2"
-              >
-                {guardandoConfig ? '...' : 'Guardar'}
-              </button>
-            </>
-          ) : (
-            <button onClick={() => setEditandoConfig(true)} className="text-[11.5px] text-inkSoft hover:underline">
-              ⚙ Umbral: {umbral}% · Horas/semana: {horasClaseSemana} · Faltas permitidas/semestre: {faltasPermitidasSemestre}
-            </button>
-          )}
+          <span className="text-[11.5px] text-inkSoft">
+            ⚙ Umbral: {umbral}% · Horas/semana: {horasClaseSemana} · Faltas permitidas/semestre: {faltasPermitidasSemestre}
+          </span>
+          <Link href="/dashboard/grupos" className="text-[11.5px] text-goldDark font-semibold hover:underline ml-1">
+            Editar en Grupos →
+          </Link>
         </div>
 
         <div className="flex items-center gap-2 mb-4 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap">

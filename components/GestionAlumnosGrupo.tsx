@@ -11,7 +11,15 @@ interface GrupoConAlumnos {
   nombre: string;
   activo: boolean;
   umbral_falta_porcentaje: number;
+  horas_clase_semana: number;
+  faltas_permitidas_semestre: number;
   alumnos: Alumno[];
+}
+
+interface ConfigEdit {
+  umbral: number;
+  horasClaseSemana: number;
+  faltasPermitidasSemestre: number;
 }
 
 export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
@@ -21,8 +29,8 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
   const [nuevoAlumno, setNuevoAlumno] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombreEdit, setNombreEdit] = useState('');
-  const [umbralEdit, setUmbralEdit] = useState<Record<string, number>>({});
-  const [guardandoUmbral, setGuardandoUmbral] = useState<string | null>(null);
+  const [configEdit, setConfigEdit] = useState<Record<string, ConfigEdit>>({});
+  const [guardandoConfig, setGuardandoConfig] = useState<string | null>(null);
 
   async function agregarAlumno(grupoId: string, orden: number) {
     const nombre = nuevoAlumno.trim();
@@ -65,14 +73,18 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
     router.refresh();
   }
 
-  async function guardarUmbral(grupoId: string) {
-    setGuardandoUmbral(grupoId);
+  async function guardarConfigGrupo(grupoId: string, config: ConfigEdit) {
+    setGuardandoConfig(grupoId);
     await fetch(`/api/grupos/${grupoId}/config`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ umbralFaltaPorcentaje: umbralEdit[grupoId] })
+      body: JSON.stringify({
+        umbralFaltaPorcentaje: config.umbral,
+        horasClaseSemana: config.horasClaseSemana,
+        faltasPermitidasSemestre: config.faltasPermitidasSemestre
+      })
     });
-    setGuardandoUmbral(null);
+    setGuardandoConfig(null);
     router.refresh();
   }
 
@@ -91,7 +103,13 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
 
       {grupos.map((g) => {
         const expandido = expandidoId === g.id;
-        const umbral = umbralEdit[g.id] ?? g.umbral_falta_porcentaje;
+        const config = configEdit[g.id] ?? {
+          umbral: g.umbral_falta_porcentaje,
+          horasClaseSemana: g.horas_clase_semana,
+          faltasPermitidasSemestre: g.faltas_permitidas_semestre
+        };
+        const setConfig = (cambios: Partial<ConfigEdit>) =>
+          setConfigEdit((prev) => ({ ...prev, [g.id]: { ...config, ...cambios } }));
         return (
           <div key={g.id} className="border-b border-border last:border-b-0">
             <div className="flex items-center justify-between px-4 py-3">
@@ -116,23 +134,42 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
 
             {expandido && (
               <div className="px-4 pb-4">
-                <div className="flex items-center gap-1.5 mb-3">
+                <div className="flex items-center gap-1.5 mb-3 flex-wrap">
                   <span className="text-[11.5px] text-inkSoft">Umbral de riesgo:</span>
                   <input
                     type="number"
                     min={1}
                     max={100}
-                    value={umbral}
-                    onChange={(e) => setUmbralEdit((prev) => ({ ...prev, [g.id]: Number(e.target.value) }))}
+                    value={config.umbral}
+                    onChange={(e) => setConfig({ umbral: Number(e.target.value) })}
                     className="w-16 text-xs border border-border rounded px-2 py-1"
                   />
                   <span className="text-[11.5px] text-inkSoft">%</span>
+
+                  <span className="text-[11.5px] text-inkSoft ml-3">Horas de clase/semana:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={config.horasClaseSemana}
+                    onChange={(e) => setConfig({ horasClaseSemana: Number(e.target.value) })}
+                    className="w-16 text-xs border border-border rounded px-2 py-1"
+                  />
+
+                  <span className="text-[11.5px] text-inkSoft ml-3">Faltas permitidas/semestre:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={config.faltasPermitidasSemestre}
+                    onChange={(e) => setConfig({ faltasPermitidasSemestre: Number(e.target.value) })}
+                    className="w-16 text-xs border border-border rounded px-2 py-1"
+                  />
+
                   <button
-                    onClick={() => guardarUmbral(g.id)}
-                    disabled={guardandoUmbral === g.id}
-                    className="text-[11.5px] px-2 py-1 rounded bg-navy text-white font-semibold"
+                    onClick={() => guardarConfigGrupo(g.id, config)}
+                    disabled={guardandoConfig === g.id}
+                    className="text-[11.5px] px-2 py-1 rounded bg-navy text-white font-semibold ml-2"
                   >
-                    {guardandoUmbral === g.id ? '...' : 'Guardar'}
+                    {guardandoConfig === g.id ? '...' : 'Guardar'}
                   </button>
                 </div>
 

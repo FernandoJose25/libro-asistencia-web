@@ -91,7 +91,7 @@ export default async function DashboardPage() {
             {(grupos || []).length === 0 && (
               <div className="p-4 text-sm text-inkSoft">
                 Aún no hay grupos. Ve a{' '}
-                <Link href="/dashboard/alumnos" className="text-goldDark font-semibold">Alumnos</Link>{' '}
+                <Link href="/dashboard/grupos" className="text-goldDark font-semibold">Grupos</Link>{' '}
                 y crea tu primer grupo.
               </div>
             )}

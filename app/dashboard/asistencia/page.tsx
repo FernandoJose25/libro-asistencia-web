@@ -15,5 +15,5 @@ export default async function AsistenciaIndexPage() {
     .limit(1);
 
   if (grupos && grupos.length > 0) redirect(`/dashboard/asistencia/${grupos[0].id}`);
-  redirect('/dashboard/alumnos');
+  redirect('/dashboard/grupos');
 }
