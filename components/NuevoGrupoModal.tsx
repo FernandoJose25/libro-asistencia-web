@@ -25,7 +25,7 @@ export function NuevoGrupoModal() {
         setCreando(false);
         if (!res.ok) { setError(data.error || 'No se pudo crear el grupo.'); return; }
         setAbierto(false);
-        router.push(`/dashboard/grupo/${data.grupoId}`);
+        router.push(`/dashboard/asistencia/${data.grupoId}`);
         router.refresh();
     }
 

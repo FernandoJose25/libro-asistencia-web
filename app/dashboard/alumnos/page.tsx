@@ -12,11 +12,12 @@ export default async function AlumnosPage() {
     } = await supabase.auth.getSession();
     if (!session) redirect('/login');
 
-    // reporte_asistencia_alumno ya trae días de asistencia/tardanza/falta y el
-    // tope de faltas permitidas según horas_clase_semana del grupo. RLS se
-    // encarga de que solo salgan alumnos de grupos de este profesor.
+    // reporte_asistencia_alumno_v2 ya trae días de asistencia/tardanza/falta y
+    // el tope de faltas permitidas según horas_clase_semana del grupo (las
+    // faltas justificadas no cuentan). RLS se encarga de que solo salgan
+    // alumnos de grupos de este profesor.
     const { data: reporte } = await supabase
-        .from('reporte_asistencia_alumno')
+        .from('reporte_asistencia_alumno_v2')
         .select(
             'alumno_id, nombre, grupo_id, grupo_nombre, horas_clase_semana, faltas_permitidas_semestre, dias_asistio, dias_tardanza, dias_falto, horas_falta_acumuladas, horas_falta_restantes'
         );
@@ -26,7 +27,7 @@ export default async function AlumnosPage() {
     // Fechas exactas de cada falta/tardanza, para poder mostrarlas como
     // evidencia si el alumno pregunta o reclama qué día faltó.
     const { data: registros } = await supabase
-        .from('registros_asistencia')
+        .from('asistencia_registros')
         .select('alumno_id, fecha, estatus')
         .in('estatus', ['falto', 'tardanza'])
         .order('fecha', { ascending: false });

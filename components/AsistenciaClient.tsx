@@ -7,11 +7,18 @@ import { sanitizarNombreArchivo } from '@/lib/utils';
 import { exportarAsistenciaExcel, exportarAsistenciaPDF } from '@/lib/exportAsistencia';
 import { StatusPillGroup } from './StatusPill';
 import { SyncButton } from './SyncButton';
+import { AttendanceHeatmap } from './AttendanceHeatmap';
+import { AiSummaryButton } from './AiSummaryButton';
 
 interface RegistroInicial {
   estatus: Estatus;
   marcado_en: string;
   justificada: boolean;
+}
+
+interface Riesgo {
+  porcentajeFalta: number;
+  enRiesgo: boolean;
 }
 
 interface Fila {
@@ -39,15 +46,31 @@ export function AsistenciaClient({
   grupoId,
   grupoNombre,
   alumnosIniciales,
-  registrosIniciales
+  registrosIniciales,
+  umbralInicial,
+  horasClaseSemanaInicial,
+  faltasPermitidasSemestreInicial,
+  riesgoPorAlumno,
+  diasHeatmap
 }: {
   grupoId: string;
   grupoNombre: string;
   alumnosIniciales: Alumno[];
   registrosIniciales: Record<string, RegistroInicial>;
+  umbralInicial: number;
+  horasClaseSemanaInicial: number;
+  faltasPermitidasSemestreInicial: number;
+  riesgoPorAlumno: Record<string, Riesgo>;
+  diasHeatmap: { fecha: string; tasaAsistencia: number }[];
 }) {
   const supabase = supabaseBrowser();
   const nombreArchivoBase = sanitizarNombreArchivo(grupoNombre);
+
+  const [umbral, setUmbral] = useState(umbralInicial);
+  const [horasClaseSemana, setHorasClaseSemana] = useState(horasClaseSemanaInicial);
+  const [faltasPermitidasSemestre, setFaltasPermitidasSemestre] = useState(faltasPermitidasSemestreInicial);
+  const [editandoConfig, setEditandoConfig] = useState(false);
+  const [guardandoConfig, setGuardandoConfig] = useState(false);
 
   const [fecha, setFecha] = useState(hoyISO());
   const [clase, setClase] = useState<1 | 2>(1);
@@ -137,6 +160,21 @@ export function AsistenciaClient({
     setDirty(true);
   }
 
+  async function guardarConfig() {
+    setGuardandoConfig(true);
+    const res = await fetch(`/api/grupos/${grupoId}/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        umbralFaltaPorcentaje: umbral,
+        horasClaseSemana,
+        faltasPermitidasSemestre
+      })
+    });
+    setGuardandoConfig(false);
+    if (res.ok) setEditandoConfig(false);
+  }
+
   async function guardarEnSupabase() {
     const registros = filas.map((f) => ({
       alumno_id: f.alumno.id,
@@ -189,6 +227,7 @@ export function AsistenciaClient({
 
   const faltas = filas.filter((f) => f.estatus === 'falto').length;
   const estadoSync = !online ? 'sin_conexion' : guardando ? 'guardando' : dirty ? 'pendiente' : 'sincronizado';
+  const enRiesgoCount = Object.values(riesgoPorAlumno).filter((r) => r.enRiesgo).length;
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -198,7 +237,62 @@ export function AsistenciaClient({
           <SyncButton estado={estadoSync} onSync={sincronizarTodo} />
         </div>
 
-        <div className="flex items-center gap-2 mb-4 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap mt-3">
+        {enRiesgoCount > 0 && (
+          <div className="flex items-center justify-between gap-2 mt-3 mb-1 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5">
+            <span className="text-sm text-red">
+              ⚠️ <b>{enRiesgoCount}</b> alumno(s) en riesgo (superan el {umbral}% de falta configurado para este grupo).
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mb-2 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap mt-3">
+          {editandoConfig ? (
+            <>
+              <span className="text-[11.5px] text-inkSoft">Umbral de riesgo:</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={umbral}
+                onChange={(e) => setUmbral(Number(e.target.value))}
+                className="w-16 text-xs border border-border rounded px-2 py-1"
+              />
+              <span className="text-[11.5px] text-inkSoft">%</span>
+
+              <span className="text-[11.5px] text-inkSoft ml-3">Horas de clase/semana:</span>
+              <input
+                type="number"
+                min={0}
+                value={horasClaseSemana}
+                onChange={(e) => setHorasClaseSemana(Number(e.target.value))}
+                className="w-16 text-xs border border-border rounded px-2 py-1"
+              />
+
+              <span className="text-[11.5px] text-inkSoft ml-3">Faltas permitidas/semestre:</span>
+              <input
+                type="number"
+                min={0}
+                value={faltasPermitidasSemestre}
+                onChange={(e) => setFaltasPermitidasSemestre(Number(e.target.value))}
+                className="w-16 text-xs border border-border rounded px-2 py-1"
+              />
+
+              <button
+                onClick={guardarConfig}
+                disabled={guardandoConfig}
+                className="text-[11.5px] px-2 py-1 rounded bg-navy text-white font-semibold ml-2"
+              >
+                {guardandoConfig ? '...' : 'Guardar'}
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setEditandoConfig(true)} className="text-[11.5px] text-inkSoft hover:underline">
+              ⚙ Umbral: {umbral}% · Horas/semana: {horasClaseSemana} · Faltas permitidas/semestre: {faltasPermitidasSemestre}
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 mb-4 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap">
           <span className="text-xs text-inkSoft mr-1">Fecha:</span>
           <input
             type="date"
@@ -233,13 +327,18 @@ export function AsistenciaClient({
           <div className="grid grid-cols-[1fr_300px_120px] px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border">
             <span>Alumno</span><span>Asistencia</span><span>Justificar</span>
           </div>
-          {filas.map((f) => (
+          {filas.map((f) => {
+            const riesgo = riesgoPorAlumno[f.alumno.id];
+            return (
             <div
               key={f.alumno.id}
               className="grid grid-cols-[1fr_300px_120px] items-center px-4 py-2.5 border-b border-border last:border-b-0"
             >
               <span className="text-sm flex items-center gap-1.5">
                 {f.alumno.nombre}
+                {riesgo?.enRiesgo && (
+                  <span title={`${riesgo.porcentajeFalta}% de falta acumulada`} className="text-red text-xs">⚠️</span>
+                )}
                 {f.estatus === 'falto' && f.justificada && (
                   <span title="Falta justificada" className="text-green text-xs">✓ justificada</span>
                 )}
@@ -254,7 +353,8 @@ export function AsistenciaClient({
                 </button>
               )}
             </div>
-          ))}
+            );
+          })}
 
           {filas.length === 0 && (
             <div className="px-4 py-6 text-sm text-inkSoft text-center">
@@ -274,6 +374,14 @@ export function AsistenciaClient({
           <button onClick={exportarPDF} className="px-4 py-2 rounded-md border border-border text-sm">
             Exportar PDF
           </button>
+        </div>
+
+        <div className="mt-6">
+          <AttendanceHeatmap dias={diasHeatmap} />
+        </div>
+
+        <div className="mt-6">
+          <AiSummaryButton grupoId={grupoId} />
         </div>
       </div>
     </div>

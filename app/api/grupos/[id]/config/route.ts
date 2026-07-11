@@ -1,50 +1,32 @@
 import { NextResponse } from 'next/server';
-import { contextoDrive } from '@/lib/driveContext';
-import { crearArchivoAsistenciaDesdeCero, MIME_XLSX } from '@/lib/drive';
+import { contextoSesion } from '@/lib/driveContext';
 
-export async function POST(request: Request) {
-    const ctx = await contextoDrive();
+// Guarda la configuración de un grupo (umbral de riesgo, horas de clase por
+// semana, tope de faltas del semestre). No habla con Drive, por eso usa
+// contextoSesion() y no contextoDrive().
+export async function POST(request: Request, { params }: { params: { id: string } }) {
+    const ctx = await contextoSesion();
     if (ctx.error) return ctx.error;
-    const { session, accessToken, supabase } = ctx;
+    const { session, supabase } = ctx;
 
-    const { nombre, alumnos, carpetaId } = await request.json();
-    if (!nombre || !Array.isArray(alumnos)) {
-        return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
+    const { umbralFaltaPorcentaje, horasClaseSemana, faltasPermitidasSemestre } = await request.json();
+
+    const cambios: Record<string, number> = {};
+    if (umbralFaltaPorcentaje !== undefined) cambios.umbral_falta_porcentaje = Number(umbralFaltaPorcentaje);
+    if (horasClaseSemana !== undefined) cambios.horas_clase_semana = Number(horasClaseSemana);
+    if (faltasPermitidasSemestre !== undefined) cambios.faltas_permitidas_semestre = Number(faltasPermitidasSemestre);
+
+    if (Object.keys(cambios).length === 0) {
+        return NextResponse.json({ error: 'Nada que guardar' }, { status: 400 });
     }
 
-    const nombresLimpios: string[] = alumnos
-        .map((n: string) => (n || '').trim())
-        .filter((n: string) => n.length > 0);
-
-    let archivo;
-    try {
-        archivo = await crearArchivoAsistenciaDesdeCero(accessToken, nombre, nombresLimpios, carpetaId);
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message || 'No se pudo crear el archivo en Drive' }, { status: 502 });
-    }
-
-    const { data: grupo, error } = await supabase
+    const { error } = await supabase
         .from('grupos')
-        .insert({
-            profesor_id: session.user.id,
-            archivo_id_nube: archivo.id,
-            archivo_mime_type: MIME_XLSX,
-            nombre,
-            activo: true,
-            ultima_sync: new Date().toISOString()
-        })
-        .select('id')
-        .single();
+        .update(cambios)
+        .eq('id', params.id)
+        .eq('profesor_id', session.user.id);
 
-    if (error || !grupo) {
-        return NextResponse.json({ error: error?.message || 'No se pudo crear el grupo' }, { status: 500 });
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    if (nombresLimpios.length > 0) {
-        await supabase.from('alumnos').insert(
-            nombresLimpios.map((n, orden) => ({ grupo_id: grupo.id, nombre: n, orden }))
-        );
-    }
-
-    return NextResponse.json({ grupoId: grupo.id });
+    return NextResponse.json({ ok: true });
 }
