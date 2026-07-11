@@ -21,13 +21,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (!grupo) return NextResponse.json({ error: 'Grupo no encontrado' }, { status: 404 });
 
     const { data: riesgo } = await supabase
-        .from('riesgo_por_alumno')
+        .from('riesgo_por_alumno_v2')
         .select('nombre, horas_falta_total, tardanzas_total:horas_falta_total, porcentaje_falta, en_riesgo')
         .eq('grupo_id', grupo.id);
 
     const { data: sesiones } = await supabase
-        .from('sesiones_grupo')
-        .select('fecha, horas_clase_dia')
+        .from('asistencia_registros')
+        .select('fecha, clase')
         .eq('grupo_id', grupo.id)
         .order('fecha');
 
@@ -39,15 +39,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     const hoy = new Date().toISOString().slice(0, 10);
-    const totalSesiones = (sesiones || []).length;
-    const totalHoras = (sesiones || []).reduce((acc, s) => acc + s.horas_clase_dia, 0);
+    const sesionesUnicas = new Set((sesiones || []).map((s) => `${s.fecha}-${s.clase}`));
+    const totalSesiones = sesionesUnicas.size;
     const enRiesgo = (riesgo || []).filter((r) => r.en_riesgo);
 
     const datosParaLaIA = {
         curso: grupo.nombre,
         fecha_de_corte: hoy,
         clases_dictadas: totalSesiones,
-        horas_dictadas_total: totalHoras,
+        horas_dictadas_total: totalSesiones,
         umbral_de_riesgo_configurado: `${grupo.umbral_falta_porcentaje}%`,
         alumnos: (riesgo || []).map((r) => ({
             nombre: r.nombre,

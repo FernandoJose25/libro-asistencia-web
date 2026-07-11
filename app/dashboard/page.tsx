@@ -21,11 +21,11 @@ export default async function DashboardPage() {
     .order('nombre');
 
   const { data: horasFalta } = await supabase
-    .from('horas_falta_por_alumno')
+    .from('horas_falta_por_alumno_v2')
     .select('grupo_id, horas_falta_total');
 
   const { data: enRiesgo } = await supabase
-    .from('riesgo_por_alumno')
+    .from('riesgo_por_alumno_v2')
     .select('nombre, grupo_id, grupo_nombre, porcentaje_falta')
     .eq('profesor_id', session.user.id)
     .eq('en_riesgo', true)
