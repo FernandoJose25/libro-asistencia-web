@@ -31,11 +31,12 @@ export async function POST(request: Request, { params }: { params: { grupoId: st
 
   const { data: registros } = await supabase
     .from('asistencia_registros')
-    .select('alumno_id, estatus, marcado_en, justificada')
+    .select('alumno_id, estatus, marcado_en, justificada, justificacion_motivo, justificacion_detalle')
     .eq('grupo_id', grupo.id)
     .eq('fecha', fecha)
     .eq('clase', clase);
 
+  const MOTIVO_LABEL: Record<string, string> = { salud: 'Salud', imprevisto: 'Imprevisto', otro: 'Otro' };
   const mapaRegistros = new Map((registros || []).map((r) => [r.alumno_id, r]));
   const [anio, mes, dia] = (fecha as string).split('-');
 
@@ -43,9 +44,14 @@ export async function POST(request: Request, { params }: { params: { grupoId: st
     const registro = mapaRegistros.get(a.id);
     const marcadoEn = registro?.marcado_en ? new Date(registro.marcado_en) : null;
     const estatus = registro?.estatus || 'falto';
+    let estatusTexto: string = estatus;
+    if (estatus === 'falto' && registro?.justificada) {
+      const motivoLabel = MOTIVO_LABEL[registro.justificacion_motivo || 'otro'] || 'Otro';
+      estatusTexto = `falto (justificada: ${motivoLabel}${registro.justificacion_detalle ? ` — ${registro.justificacion_detalle}` : ''})`;
+    }
     return {
       nombre: a.nombre,
-      estatus: estatus === 'falto' && registro?.justificada ? 'falto (justificada)' : estatus,
+      estatus: estatusTexto,
       fecha: `${dia}/${mes}/${anio}`,
       hora: marcadoEn
         ? marcadoEn.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false })

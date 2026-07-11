@@ -28,14 +28,23 @@ export default async function AsistenciaGrupoPage({ params }: { params: { grupoI
   const hoy = new Date().toISOString().slice(0, 10);
   const { data: registros } = await supabase
     .from('asistencia_registros')
-    .select('alumno_id, estatus, marcado_en, justificada')
+    .select('alumno_id, estatus, marcado_en, justificada, justificacion_motivo, justificacion_detalle')
     .eq('grupo_id', grupo.id)
     .eq('fecha', hoy)
     .eq('clase', 1);
 
-  const registrosIniciales: Record<string, { estatus: any; marcado_en: string; justificada: boolean }> = {};
+  const registrosIniciales: Record<
+    string,
+    { estatus: any; marcado_en: string; justificada: boolean; justificacion_motivo: any; justificacion_detalle: string | null }
+  > = {};
   (registros || []).forEach((r) => {
-    registrosIniciales[r.alumno_id] = { estatus: r.estatus, marcado_en: r.marcado_en, justificada: r.justificada };
+    registrosIniciales[r.alumno_id] = {
+      estatus: r.estatus,
+      marcado_en: r.marcado_en,
+      justificada: r.justificada,
+      justificacion_motivo: r.justificacion_motivo,
+      justificacion_detalle: r.justificacion_detalle
+    };
   });
 
   // Riesgo por alumno (umbral configurable) y calendario de asistencia (heatmap).

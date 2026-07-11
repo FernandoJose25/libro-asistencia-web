@@ -10,11 +10,14 @@ import { StatusPillGroup } from './StatusPill';
 import { SyncButton } from './SyncButton';
 import { AttendanceHeatmap } from './AttendanceHeatmap';
 import { AiSummaryButton } from './AiSummaryButton';
+import { JustificarPopover, MOTIVOS, type MotivoJustificacion } from './JustificarPopover';
 
 interface RegistroInicial {
   estatus: Estatus;
   marcado_en: string;
   justificada: boolean;
+  justificacion_motivo: MotivoJustificacion | null;
+  justificacion_detalle: string | null;
 }
 
 interface Riesgo {
@@ -27,6 +30,8 @@ interface Fila {
   estatus: Estatus;
   marcadoEn: string | null;
   justificada: boolean;
+  justificacionMotivo: MotivoJustificacion | null;
+  justificacionDetalle: string;
 }
 
 function hoyISO() {
@@ -78,7 +83,9 @@ export function AsistenciaClient({
       alumno: a,
       estatus: registrosIniciales[a.id]?.estatus || 'falto',
       marcadoEn: registrosIniciales[a.id]?.marcado_en || null,
-      justificada: registrosIniciales[a.id]?.justificada || false
+      justificada: registrosIniciales[a.id]?.justificada || false,
+      justificacionMotivo: registrosIniciales[a.id]?.justificacion_motivo || null,
+      justificacionDetalle: registrosIniciales[a.id]?.justificacion_detalle || ''
     }))
   );
   const [dirty, setDirty] = useState(false);
@@ -86,6 +93,7 @@ export function AsistenciaClient({
   const [online, setOnline] = useState(true);
   const [cargando, setCargando] = useState(false);
   const [errorSync, setErrorSync] = useState('');
+  const [justificandoId, setJustificandoId] = useState<string | null>(null);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -108,7 +116,7 @@ export function AsistenciaClient({
     setCargando(true);
     const { data: registros } = await supabase
       .from('asistencia_registros')
-      .select('alumno_id, estatus, marcado_en, justificada')
+      .select('alumno_id, estatus, marcado_en, justificada, justificacion_motivo, justificacion_detalle')
       .eq('grupo_id', grupoId)
       .eq('fecha', nuevaFecha)
       .eq('clase', nuevaClase);
@@ -119,7 +127,9 @@ export function AsistenciaClient({
         ...f,
         estatus: (mapa.get(f.alumno.id)?.estatus as Estatus) || 'falto',
         marcadoEn: mapa.get(f.alumno.id)?.marcado_en || null,
-        justificada: mapa.get(f.alumno.id)?.justificada || false
+        justificada: mapa.get(f.alumno.id)?.justificada || false,
+        justificacionMotivo: (mapa.get(f.alumno.id)?.justificacion_motivo as MotivoJustificacion) || null,
+        justificacionDetalle: mapa.get(f.alumno.id)?.justificacion_detalle || ''
       }))
     );
     setDirty(false);
@@ -140,24 +150,58 @@ export function AsistenciaClient({
     setFilas((prev) =>
       prev.map((f) =>
         f.alumno.id === alumnoId
-          ? { ...f, estatus, marcadoEn: new Date().toISOString(), justificada: estatus === 'falto' ? f.justificada : false }
+          ? {
+              ...f,
+              estatus,
+              marcadoEn: new Date().toISOString(),
+              justificada: estatus === 'falto' ? f.justificada : false,
+              justificacionMotivo: estatus === 'falto' ? f.justificacionMotivo : null,
+              justificacionDetalle: estatus === 'falto' ? f.justificacionDetalle : ''
+            }
+          : f
+      )
+    );
+    setDirty(true);
+    if (estatus !== 'falto') setJustificandoId(null);
+  }
+
+  function guardarJustificacion(alumnoId: string, motivo: MotivoJustificacion, detalle: string) {
+    setFilas((prev) =>
+      prev.map((f) =>
+        f.alumno.id === alumnoId
+          ? { ...f, justificada: true, justificacionMotivo: motivo, justificacionDetalle: detalle }
+          : f
+      )
+    );
+    setDirty(true);
+    setJustificandoId(null);
+  }
+
+  function quitarJustificacion(alumnoId: string) {
+    setFilas((prev) =>
+      prev.map((f) =>
+        f.alumno.id === alumnoId
+          ? { ...f, justificada: false, justificacionMotivo: null, justificacionDetalle: '' }
           : f
       )
     );
     setDirty(true);
   }
 
-  function alternarJustificada(alumnoId: string) {
-    setFilas((prev) =>
-      prev.map((f) => (f.alumno.id === alumnoId ? { ...f, justificada: !f.justificada } : f))
-    );
-    setDirty(true);
-  }
-
   function marcarTodosPresentes() {
     const ahora = new Date().toISOString();
-    setFilas((prev) => prev.map((f) => ({ ...f, estatus: 'asistio' as Estatus, marcadoEn: ahora, justificada: false })));
+    setFilas((prev) =>
+      prev.map((f) => ({
+        ...f,
+        estatus: 'asistio' as Estatus,
+        marcadoEn: ahora,
+        justificada: false,
+        justificacionMotivo: null,
+        justificacionDetalle: ''
+      }))
+    );
     setDirty(true);
+    setJustificandoId(null);
   }
 
   async function guardarEnSupabase() {
@@ -172,7 +216,9 @@ export function AsistenciaClient({
       clase,
       estatus: f.estatus,
       marcado_en: f.marcadoEn || new Date().toISOString(),
-      justificada: f.estatus === 'falto' ? f.justificada : false
+      justificada: f.estatus === 'falto' ? f.justificada : false,
+      justificacion_motivo: f.estatus === 'falto' && f.justificada ? f.justificacionMotivo : null,
+      justificacion_detalle: f.estatus === 'falto' && f.justificada ? f.justificacionDetalle : null
     }));
     const { error } = await supabase.from('asistencia_registros').upsert(registros, { onConflict: 'alumno_id,fecha,clase' });
     if (error) throw new Error(`No se pudo guardar en la base de datos: ${error.message}`);
@@ -202,12 +248,19 @@ export function AsistenciaClient({
   }
 
   function filasExport() {
-    return filas.map((f) => ({
-      nombre: f.alumno.nombre,
-      estatus: f.estatus === 'falto' && f.justificada ? 'falto (justificada)' : f.estatus,
-      fecha: formatearFecha(fecha),
-      hora: formatearHora(f.marcadoEn)
-    }));
+    return filas.map((f) => {
+      const motivoLabel = MOTIVOS.find((m) => m.valor === f.justificacionMotivo)?.label;
+      const justificacionTexto =
+        f.estatus === 'falto' && f.justificada
+          ? ` (justificada: ${motivoLabel || 'otro'}${f.justificacionDetalle ? ` — ${f.justificacionDetalle}` : ''})`
+          : '';
+      return {
+        nombre: f.alumno.nombre,
+        estatus: `${f.estatus}${justificacionTexto}`,
+        fecha: formatearFecha(fecha),
+        hora: formatearHora(f.marcadoEn)
+      };
+    });
   }
 
   function exportarExcel() {
@@ -301,17 +354,26 @@ export function AsistenciaClient({
                   <span title={`${riesgo.porcentajeFalta}% de falta acumulada`} className="text-red text-xs">⚠️</span>
                 )}
                 {f.estatus === 'falto' && f.justificada && (
-                  <span title="Falta justificada" className="text-green text-xs">✓ justificada</span>
+                  <span
+                    title={`${MOTIVOS.find((m) => m.valor === f.justificacionMotivo)?.label || 'Otro'}${f.justificacionDetalle ? ` — ${f.justificacionDetalle}` : ''}`}
+                    className="text-green text-xs"
+                  >
+                    ✓ justificada
+                  </span>
                 )}
               </span>
               <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
               {f.estatus === 'falto' && (
-                <button
-                  onClick={() => alternarJustificada(f.alumno.id)}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border whitespace-nowrap ${f.justificada ? 'border-green text-green bg-green/10' : 'border-border text-inkSoft'}`}
-                >
-                  {f.justificada ? '✓ Justificada' : 'Justificar'}
-                </button>
+                <JustificarPopover
+                  justificada={f.justificada}
+                  motivo={f.justificacionMotivo}
+                  detalle={f.justificacionDetalle}
+                  abierto={justificandoId === f.alumno.id}
+                  onAbrir={() => setJustificandoId(f.alumno.id)}
+                  onCerrar={() => setJustificandoId(null)}
+                  onGuardar={(motivo, detalle) => guardarJustificacion(f.alumno.id, motivo, detalle)}
+                  onQuitar={() => { quitarJustificacion(f.alumno.id); setJustificandoId(null); }}
+                />
               )}
             </div>
             );
