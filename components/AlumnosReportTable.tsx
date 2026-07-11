@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { exportarReporteAlumnoPDF } from '@/lib/exportReporteAlumno';
 
 export interface FilaReporteAlumno {
     alumno_id: string;
@@ -53,6 +54,22 @@ export function AlumnosReportTable({
             .filter((f) => f.nombre.toLowerCase().includes(busqueda.toLowerCase()))
             .sort((a, b) => a.horas_falta_restantes - b.horas_falta_restantes);
     }, [filas, grupoFiltro, busqueda]);
+
+    function exportarReporte(f: FilaReporteAlumno) {
+        const detalle = detalles[f.alumno_id] || { faltas: [], tardanzas: [] };
+        exportarReporteAlumnoPDF({
+            nombre: f.nombre,
+            grupoNombre: f.grupo_nombre,
+            diasAsistio: f.dias_asistio,
+            diasTardanza: f.dias_tardanza,
+            diasFalto: f.dias_falto,
+            horasFaltaAcumuladas: f.horas_falta_acumuladas,
+            horasFaltaRestantes: f.horas_falta_restantes,
+            faltasPermitidasSemestre: f.faltas_permitidas_semestre,
+            faltas: detalle.faltas.map(formatearFecha),
+            tardanzas: detalle.tardanzas.map(formatearFecha)
+        });
+    }
 
     return (
         <div>
@@ -117,7 +134,16 @@ export function AlumnosReportTable({
                             </button>
 
                             {abierto && (
-                                <div className="px-4 pb-4 pt-1 bg-bg/40 grid grid-cols-2 gap-4 text-[12.5px]">
+                                <div className="px-4 pb-4 pt-1 bg-bg/40 text-[12.5px]">
+                                    <div className="flex justify-end mb-3">
+                                        <button
+                                            onClick={() => exportarReporte(f)}
+                                            className="px-3 py-1.5 rounded-md border border-border text-xs font-semibold bg-white"
+                                        >
+                                            📄 Reporte para apoderado (PDF)
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <div className="text-red font-semibold mb-1.5">Faltó ({detalle.faltas.length})</div>
                                         {detalle.faltas.length === 0 && <div className="text-inkSoft">Sin faltas registradas.</div>}
@@ -139,6 +165,7 @@ export function AlumnosReportTable({
                                                 </li>
                                             ))}
                                         </ul>
+                                    </div>
                                     </div>
                                 </div>
                             )}

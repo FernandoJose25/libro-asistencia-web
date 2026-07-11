@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
  * componente de cliente maneja tokens de Google directamente.
  */
 
-function driveClient(accessToken: string) {
+export function driveClient(accessToken: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.drive({ version: 'v3', auth });

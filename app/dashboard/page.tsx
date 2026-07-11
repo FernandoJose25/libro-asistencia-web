@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { tieneDriveConectado } from '@/lib/googleAuth';
 import { Topbar } from '@/components/Topbar';
+import { AsistenciaHoyButton } from '@/components/AsistenciaHoyButton';
 
 export default async function DashboardPage() {
   const supabase = supabaseServer();
@@ -38,7 +39,10 @@ export default async function DashboardPage() {
       <Topbar breadcrumb="Dashboard" inicial={inicial} />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1020px] mx-auto px-8 py-7 pb-14">
-          <h2 className="text-xl font-bold mb-5">Resumen</h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-xl font-bold">Resumen</h2>
+            <AsistenciaHoyButton primerGrupoId={grupos && grupos.length > 0 ? grupos[0].id : null} />
+          </div>
 
           {(enRiesgo || []).length > 0 && (
             <div className="bg-red/10 border border-red/30 rounded-card p-4 mb-6">
@@ -49,7 +53,7 @@ export default async function DashboardPage() {
                 {enRiesgo!.slice(0, 6).map((r: any, i: number) => (
                   <Link
                     key={i}
-                    href={`/dashboard/grupo/${r.grupo_id}`}
+                    href={`/dashboard/asistencia/${r.grupo_id}`}
                     className="text-[12.5px] text-ink hover:underline"
                   >
                     {r.nombre} — {r.grupo_nombre} ({r.porcentaje_falta}% de falta)
@@ -87,14 +91,14 @@ export default async function DashboardPage() {
             {(grupos || []).length === 0 && (
               <div className="p-4 text-sm text-inkSoft">
                 Aún no hay grupos. Ve a{' '}
-                <Link href="/dashboard/drive" className="text-goldDark font-semibold">Drive</Link>{' '}
-                y marca un archivo como "Usar para asistencia".
+                <Link href="/dashboard/alumnos" className="text-goldDark font-semibold">Alumnos</Link>{' '}
+                y crea tu primer grupo.
               </div>
             )}
             {(grupos || []).map((g, i) => (
               <Link
                 key={g.id}
-                href={`/dashboard/grupo/${g.id}`}
+                href={`/dashboard/asistencia/${g.id}`}
                 className={`flex items-center justify-between px-4 py-3 text-sm hover:bg-black/[0.02] ${i > 0 ? 'border-t border-border' : ''
                   }`}
               >

@@ -118,19 +118,6 @@ export async function desconectarDrive(profesorId: string): Promise<void> {
   // 1) Borrar todo lo sincronizado de Drive para este profesor.
   //    alumnos y registros_asistencia tienen "on delete cascade" hacia
   //    grupos/alumnos, así que basta con borrar los grupos.
-  const { data: grupos } = await supabase.from('grupos').select('id').eq('profesor_id', profesorId);
-  const grupoIds = (grupos || []).map((g) => g.id);
-
-  if (grupoIds.length > 0) {
-    // sesiones_qr no tiene FK con cascade garantizado — se borra aparte y
-    // sin frenar el resto si la tabla no existe o falla.
-    try {
-      await supabase.from('sesiones_qr').delete().in('grupo_id', grupoIds);
-    } catch {
-      // no bloquear la desconexión por esto
-    }
-  }
-
   await supabase.from('grupos').delete().eq('profesor_id', profesorId);
 
   // 2) Revocar el token con Google y borrar nuestro registro.
