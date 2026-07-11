@@ -205,7 +205,7 @@ export function AttendanceClient({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-[900px] mx-auto px-8 py-6 pb-14">
+      <div className="max-w-[900px] mx-auto px-4 md:px-8 py-5 md:py-6 pb-14">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2.5">
           <h2 className="text-xl font-bold">{grupoNombre}</h2>
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -279,7 +279,8 @@ export function AttendanceClient({
           </div>
         </div>
 
-        <div className="bg-white border border-border rounded-card overflow-hidden">
+        <div className="bg-white border border-border rounded-card overflow-x-auto">
+          <div className={gestionando ? 'min-w-[620px]' : 'min-w-[460px]'}>
           <div className={`grid ${gestionando ? 'grid-cols-[24px_1fr_300px_84px]' : 'grid-cols-[1fr_300px]'} px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border`}>
             {gestionando && <span />}
             <span>Alumno</span><span>Asistencia</span>
@@ -352,6 +353,7 @@ export function AttendanceClient({
               Este grupo no tiene alumnos todavía. Click en "Gestionar alumnos" para agregarlos.
             </div>
           )}
+          </div>
         </div>
 
         <div className="text-xs text-inkSoft mt-3">

@@ -277,7 +277,7 @@ export function AsistenciaClient({
 
   return (
     <div className="flex-1 overflow-y-auto">
-      <div className="max-w-[900px] mx-auto px-8 py-6 pb-14">
+      <div className="max-w-[900px] mx-auto px-4 md:px-8 py-5 md:py-6 pb-14">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2.5">
           <h2 className="text-xl font-bold">{grupoNombre}</h2>
           <SyncButton estado={estadoSync} onSync={sincronizarTodo} />
@@ -337,53 +337,55 @@ export function AsistenciaClient({
           </button>
         </div>
 
-        <div className={`bg-white border border-border rounded-card overflow-hidden ${cargando ? 'opacity-50 pointer-events-none' : ''}`}>
-          <div className="grid grid-cols-[1fr_300px_120px] px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border">
-            <span>Alumno</span><span>Asistencia</span><span>Justificar</span>
-          </div>
-          {filas.map((f) => {
-            const riesgo = riesgoPorAlumno[f.alumno.id];
-            return (
-            <div
-              key={f.alumno.id}
-              className="grid grid-cols-[1fr_300px_120px] items-center px-4 py-2.5 border-b border-border last:border-b-0"
-            >
-              <span className="text-sm flex items-center gap-1.5">
-                {f.alumno.nombre}
-                {riesgo?.enRiesgo && (
-                  <span title={`${riesgo.porcentajeFalta}% de falta acumulada`} className="text-red text-xs">⚠️</span>
-                )}
-                {f.estatus === 'falto' && f.justificada && (
-                  <span
-                    title={`${MOTIVOS.find((m) => m.valor === f.justificacionMotivo)?.label || 'Otro'}${f.justificacionDetalle ? ` — ${f.justificacionDetalle}` : ''}`}
-                    className="text-green text-xs"
-                  >
-                    ✓ justificada
-                  </span>
-                )}
-              </span>
-              <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
-              {f.estatus === 'falto' && (
-                <JustificarPopover
-                  justificada={f.justificada}
-                  motivo={f.justificacionMotivo}
-                  detalle={f.justificacionDetalle}
-                  abierto={justificandoId === f.alumno.id}
-                  onAbrir={() => setJustificandoId(f.alumno.id)}
-                  onCerrar={() => setJustificandoId(null)}
-                  onGuardar={(motivo, detalle) => guardarJustificacion(f.alumno.id, motivo, detalle)}
-                  onQuitar={() => { quitarJustificacion(f.alumno.id); setJustificandoId(null); }}
-                />
-              )}
+        <div className={`bg-white border border-border rounded-card overflow-x-auto ${cargando ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className="min-w-[560px]">
+            <div className="grid grid-cols-[1fr_300px_120px] px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border">
+              <span>Alumno</span><span>Asistencia</span><span>Justificar</span>
             </div>
-            );
-          })}
+            {filas.map((f) => {
+              const riesgo = riesgoPorAlumno[f.alumno.id];
+              return (
+              <div
+                key={f.alumno.id}
+                className="grid grid-cols-[1fr_300px_120px] items-center px-4 py-2.5 border-b border-border last:border-b-0"
+              >
+                <span className="text-sm flex items-center gap-1.5">
+                  {f.alumno.nombre}
+                  {riesgo?.enRiesgo && (
+                    <span title={`${riesgo.porcentajeFalta}% de falta acumulada`} className="text-red text-xs">⚠️</span>
+                  )}
+                  {f.estatus === 'falto' && f.justificada && (
+                    <span
+                      title={`${MOTIVOS.find((m) => m.valor === f.justificacionMotivo)?.label || 'Otro'}${f.justificacionDetalle ? ` — ${f.justificacionDetalle}` : ''}`}
+                      className="text-green text-xs"
+                    >
+                      ✓ justificada
+                    </span>
+                  )}
+                </span>
+                <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
+                {f.estatus === 'falto' && (
+                  <JustificarPopover
+                    justificada={f.justificada}
+                    motivo={f.justificacionMotivo}
+                    detalle={f.justificacionDetalle}
+                    abierto={justificandoId === f.alumno.id}
+                    onAbrir={() => setJustificandoId(f.alumno.id)}
+                    onCerrar={() => setJustificandoId(null)}
+                    onGuardar={(motivo, detalle) => guardarJustificacion(f.alumno.id, motivo, detalle)}
+                    onQuitar={() => { quitarJustificacion(f.alumno.id); setJustificandoId(null); }}
+                  />
+                )}
+              </div>
+              );
+            })}
 
-          {filas.length === 0 && (
-            <div className="px-4 py-6 text-sm text-inkSoft text-center">
-              Este grupo no tiene alumnos todavía. Ve a "Alumnos" para agregarlos.
-            </div>
-          )}
+            {filas.length === 0 && (
+              <div className="px-4 py-6 text-sm text-inkSoft text-center">
+                Este grupo no tiene alumnos todavía. Ve a "Alumnos" para agregarlos.
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="text-xs text-inkSoft mt-3">

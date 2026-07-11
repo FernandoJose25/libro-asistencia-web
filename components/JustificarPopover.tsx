@@ -52,7 +52,7 @@ export function JustificarPopover({
       </button>
 
       {abierto && (
-        <div className="absolute right-0 top-8 z-10 bg-white border border-border rounded-md shadow-lg p-3 w-64">
+        <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-md shadow-lg p-3 w-[min(16rem,85vw)]">
           <div className="text-[11px] text-inkSoft mb-1.5">Motivo</div>
           <div className="flex gap-1.5 mb-2">
             {MOTIVOS.map((m) => (

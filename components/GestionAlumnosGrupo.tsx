@@ -133,7 +133,7 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
 
   return (
     <div className="bg-white border border-border rounded-card overflow-hidden mb-6">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border flex-wrap">
         <h3 className="text-sm font-bold">Grupos</h3>
         <NuevoGrupoModal />
       </div>
@@ -155,16 +155,16 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
           setConfigEdit((prev) => ({ ...prev, [g.id]: { ...config, ...cambios } }));
         return (
           <div key={g.id} className="border-b border-border last:border-b-0">
-            <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 flex-wrap">
               <button
                 onClick={() => setExpandidoId(expandido ? null : g.id)}
-                className="text-sm font-semibold text-left flex items-center gap-2"
+                className="text-sm font-semibold text-left flex items-center gap-2 min-w-0"
               >
-                <span className="text-inkSoft text-xs">{expandido ? '▾' : '▸'}</span>
-                {g.nombre}
-                {!g.activo && <span className="text-[10px] text-inkSoft font-normal">(inactivo)</span>}
+                <span className="text-inkSoft text-xs shrink-0">{expandido ? '▾' : '▸'}</span>
+                <span className="truncate">{g.nombre}</span>
+                {!g.activo && <span className="text-[10px] text-inkSoft font-normal shrink-0">(inactivo)</span>}
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[11px] text-inkSoft">{g.alumnos.length} alumno(s)</span>
                 <button
                   onClick={() => alternarActivo(g.id, g.activo)}
