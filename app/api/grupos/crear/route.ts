@@ -8,13 +8,13 @@ export async function POST(request: Request) {
     const { session, accessToken, supabase } = ctx;
 
     const { nombre, alumnos, carpetaId } = await request.json();
-    if (!nombre || !Array.isArray(alumnos)) {
+    if (!nombre) {
         return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
     }
 
-    const nombresLimpios: string[] = alumnos
-        .map((n: string) => (n || '').trim())
-        .filter((n: string) => n.length > 0);
+    const nombresLimpios: string[] = Array.isArray(alumnos)
+        ? alumnos.map((n: string) => (n || '').trim()).filter((n: string) => n.length > 0)
+        : [];
 
     let archivo;
     try {
