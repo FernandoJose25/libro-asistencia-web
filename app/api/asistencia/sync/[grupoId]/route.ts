@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: { grupoId: st
 
   const { data: grupo } = await supabase
     .from('grupos')
-    .select('id, nombre, profesor_id')
+    .select('id, nombre, profesor_id, carpeta_drive_id')
     .eq('id', params.grupoId)
     .single();
 
@@ -54,12 +54,17 @@ export async function POST(request: Request, { params }: { params: { grupoId: st
   });
 
   try {
-    await sincronizarAsistenciaADrive(accessToken, {
-      grupoNombreArchivo: sanitizarNombreArchivo(grupo.nombre),
+    const { carpetaGrupoId } = await sincronizarAsistenciaADrive(accessToken, {
+      grupoNombre: sanitizarNombreArchivo(grupo.nombre),
+      carpetaGrupoId: grupo.carpeta_drive_id,
       fechaCarpeta: `${dia}-${mes}-${anio}`,
       clase: clase as 1 | 2,
       filas
     });
+
+    if (carpetaGrupoId !== grupo.carpeta_drive_id) {
+      await supabase.from('grupos').update({ carpeta_drive_id: carpetaGrupoId }).eq('id', grupo.id);
+    }
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Error escribiendo en Drive' }, { status: 502 });
   }
