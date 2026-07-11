@@ -1,10 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno } from '@/lib/types';
 import { NuevoGrupoModal } from './NuevoGrupoModal';
+
+// Lee la primera columna de un .xlsx/.csv (sin encabezado) como nombres de
+// alumnos — mismo criterio que lib/drive.ts:leerAlumnosDeArchivo, pero
+// leyendo un archivo subido desde el navegador en vez de uno de Drive.
+async function leerNombresDeArchivoLocal(archivo: File): Promise<string[]> {
+  const buffer = await archivo.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+  return rows
+    .slice(1)
+    .map((r) => (r[0] || '').toString().trim())
+    .filter((n) => n.length > 0);
+}
 
 interface GrupoConAlumnos {
   id: string;
@@ -31,6 +46,9 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
   const [nombreEdit, setNombreEdit] = useState('');
   const [configEdit, setConfigEdit] = useState<Record<string, ConfigEdit>>({});
   const [guardandoConfig, setGuardandoConfig] = useState<string | null>(null);
+  const [importando, setImportando] = useState<string | null>(null);
+  const [errorImport, setErrorImport] = useState<Record<string, string>>({});
+  const inputArchivoRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function agregarAlumno(grupoId: string, orden: number) {
     const nombre = nuevoAlumno.trim();
@@ -38,6 +56,29 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
     await supabase.from('alumnos').insert({ grupo_id: grupoId, nombre, orden });
     setNuevoAlumno('');
     router.refresh();
+  }
+
+  async function importarExcel(grupoId: string, orden: number, archivo: File) {
+    setImportando(grupoId);
+    setErrorImport((prev) => ({ ...prev, [grupoId]: '' }));
+    try {
+      const nombres = await leerNombresDeArchivoLocal(archivo);
+      if (nombres.length === 0) {
+        setErrorImport((prev) => ({ ...prev, [grupoId]: 'No se encontraron nombres en la primera columna del archivo.' }));
+        return;
+      }
+      const filas = nombres.map((nombre, i) => ({ grupo_id: grupoId, nombre, orden: orden + i }));
+      const { error } = await supabase.from('alumnos').insert(filas);
+      if (error) {
+        setErrorImport((prev) => ({ ...prev, [grupoId]: error.message }));
+        return;
+      }
+      router.refresh();
+    } catch (e: any) {
+      setErrorImport((prev) => ({ ...prev, [grupoId]: e.message || 'No se pudo leer el archivo.' }));
+    } finally {
+      setImportando(null);
+    }
   }
 
   function empezarEdicion(alumno: Alumno) {
@@ -220,7 +261,26 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                     >
                       + Agregar
                     </button>
+                    <input
+                      ref={(el) => { inputArchivoRef.current[g.id] = el; }}
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const archivo = e.target.files?.[0];
+                        if (archivo) importarExcel(g.id, g.alumnos.length, archivo);
+                        e.target.value = '';
+                      }}
+                    />
+                    <button
+                      onClick={() => inputArchivoRef.current[g.id]?.click()}
+                      disabled={importando === g.id}
+                      className="px-4 py-2 rounded-md border border-border text-sm font-semibold whitespace-nowrap disabled:opacity-60"
+                    >
+                      {importando === g.id ? 'Importando…' : '📄 Importar Excel'}
+                    </button>
                   </div>
+                  {errorImport[g.id] && <p className="text-xs text-red px-3 pb-2">{errorImport[g.id]}</p>}
                 </div>
               </div>
             )}
