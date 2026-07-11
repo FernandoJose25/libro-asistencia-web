@@ -7,6 +7,8 @@ import { exportarReporteAlumnoPDF } from '@/lib/exportReporteAlumno';
 export interface FilaReporteAlumno {
     alumno_id: string;
     nombre: string;
+    apellidos?: string | null;
+    nombres?: string | null;
     grupo_id: string;
     grupo_nombre: string;
     horas_clase_semana: number;
@@ -98,7 +100,8 @@ export function AlumnosReportTable({
             </div>
 
             <div className="bg-white border border-border rounded-card overflow-hidden">
-                <div className="grid grid-cols-[1.6fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
+                <div className="grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
+                    <div>Nro</div>
                     <div>Alumno</div>
                     <div>Grupo</div>
                     <div className="text-center">Tardanzas</div>
@@ -118,11 +121,12 @@ export function AlumnosReportTable({
                         <div key={f.alumno_id} className={i > 0 ? 'border-t border-border' : ''}>
                             <button
                                 onClick={() => setExpandido(abierto ? null : f.alumno_id)}
-                                className="w-full grid grid-cols-[1.6fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-3 text-sm text-left hover:bg-black/[0.02] items-center"
+                                className="w-full grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-3 text-sm text-left hover:bg-black/[0.02] items-center"
                             >
+                                <span className="text-inkSoft">{i + 1}</span>
                                 <span className="font-semibold flex items-center gap-1.5">
                                     <span className={`text-[10px] transition-transform ${abierto ? 'rotate-90' : ''}`}>▶</span>
-                                    {f.nombre}
+                                    {f.apellidos && f.nombres ? `${f.apellidos}, ${f.nombres}` : f.nombre}
                                 </span>
                                 <span className="text-inkSoft truncate">{f.grupo_nombre}</span>
                                 <span className="text-center text-amber font-semibold">{f.dias_tardanza}</span>

@@ -22,7 +22,7 @@ export default async function GrupoPage({ params }: { params: { id: string } }) 
 
   const { data: alumnos } = await supabase
     .from('alumnos')
-    .select('id, grupo_id, nombre, orden')
+    .select('id, grupo_id, nombre, apellidos, nombres, orden')
     .eq('grupo_id', grupo.id)
     .order('orden');
 
