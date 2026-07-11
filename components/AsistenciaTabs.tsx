@@ -12,8 +12,8 @@ export function AsistenciaTabs({ grupos }: { grupos: Grupo[] }) {
       <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-white text-sm text-inkSoft">
         <span>
           Aún no tienes grupos.{' '}
-          <Link href="/dashboard/alumnos" className="text-goldDark font-semibold">
-            Crea uno desde Alumnos
+          <Link href="/dashboard/grupos" className="text-goldDark font-semibold">
+            Crea uno desde Grupos
           </Link>{' '}
           para poder tomar asistencia.
         </span>
