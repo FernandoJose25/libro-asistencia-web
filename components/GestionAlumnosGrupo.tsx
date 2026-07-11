@@ -2,24 +2,10 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import * as XLSX from 'xlsx';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno } from '@/lib/types';
+import { leerAlumnosDeArchivoLocal } from '@/lib/importarAlumnosExcel';
 import { NuevoGrupoModal } from './NuevoGrupoModal';
-
-// Lee la primera columna de un .xlsx/.csv (sin encabezado) como nombres de
-// alumnos — mismo criterio que lib/drive.ts:leerAlumnosDeArchivo, pero
-// leyendo un archivo subido desde el navegador en vez de uno de Drive.
-async function leerNombresDeArchivoLocal(archivo: File): Promise<string[]> {
-  const buffer = await archivo.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: 'array' });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const rows: string[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-  return rows
-    .slice(1)
-    .map((r) => (r[0] || '').toString().trim())
-    .filter((n) => n.length > 0);
-}
 
 interface GrupoConAlumnos {
   id: string;
@@ -41,7 +27,8 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
   const supabase = supabaseBrowser();
   const router = useRouter();
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
-  const [nuevoAlumno, setNuevoAlumno] = useState('');
+  const [nuevoApellidos, setNuevoApellidos] = useState('');
+  const [nuevoNombres, setNuevoNombres] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [nombreEdit, setNombreEdit] = useState('');
   const [configEdit, setConfigEdit] = useState<Record<string, ConfigEdit>>({});
@@ -51,10 +38,19 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
   const inputArchivoRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   async function agregarAlumno(grupoId: string, orden: number) {
-    const nombre = nuevoAlumno.trim();
-    if (!nombre) return;
-    await supabase.from('alumnos').insert({ grupo_id: grupoId, nombre, orden });
-    setNuevoAlumno('');
+    const apellidos = nuevoApellidos.trim();
+    const nombres = nuevoNombres.trim();
+    if (!apellidos && !nombres) return;
+    const nombre = [apellidos, nombres].filter(Boolean).join(' ');
+    await supabase.from('alumnos').insert({
+      grupo_id: grupoId,
+      nombre,
+      apellidos: apellidos || null,
+      nombres: nombres || null,
+      orden
+    });
+    setNuevoApellidos('');
+    setNuevoNombres('');
     router.refresh();
   }
 
@@ -62,12 +58,18 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
     setImportando(grupoId);
     setErrorImport((prev) => ({ ...prev, [grupoId]: '' }));
     try {
-      const nombres = await leerNombresDeArchivoLocal(archivo);
-      if (nombres.length === 0) {
-        setErrorImport((prev) => ({ ...prev, [grupoId]: 'No se encontraron nombres en la primera columna del archivo.' }));
+      const filasLeidas = await leerAlumnosDeArchivoLocal(archivo);
+      if (filasLeidas.length === 0) {
+        setErrorImport((prev) => ({ ...prev, [grupoId]: 'No se encontraron alumnos en el archivo.' }));
         return;
       }
-      const filas = nombres.map((nombre, i) => ({ grupo_id: grupoId, nombre, orden: orden + i }));
+      const filas = filasLeidas.map((f, i) => ({
+        grupo_id: grupoId,
+        nombre: f.nombreCompleto,
+        apellidos: f.apellidos,
+        nombres: f.nombres,
+        orden: orden + i
+      }));
       const { error } = await supabase.from('alumnos').insert(filas);
       if (error) {
         setErrorImport((prev) => ({ ...prev, [grupoId]: error.message }));
@@ -236,7 +238,7 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                         />
                       ) : (
                         <span className="text-sm cursor-text hover:underline" onClick={() => empezarEdicion(a)}>
-                          {a.nombre}
+                          {a.apellidos && a.nombres ? `${a.apellidos}, ${a.nombres}` : a.nombre}
                         </span>
                       )}
 
@@ -247,13 +249,20 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                     </div>
                   ))}
 
-                  <div className="flex gap-2 items-center px-3 py-2.5 bg-bg/60">
+                  <div className="flex gap-2 items-center px-3 py-2.5 bg-bg/60 flex-wrap">
                     <input
-                      value={nuevoAlumno}
-                      onChange={(e) => setNuevoAlumno(e.target.value)}
+                      value={nuevoApellidos}
+                      onChange={(e) => setNuevoApellidos(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && agregarAlumno(g.id, g.alumnos.length)}
-                      placeholder="Nombre del nuevo alumno…"
-                      className="flex-1 text-sm border border-border rounded-md px-3 py-2"
+                      placeholder="Apellidos…"
+                      className="flex-1 text-sm border border-border rounded-md px-3 py-2 min-w-[140px]"
+                    />
+                    <input
+                      value={nuevoNombres}
+                      onChange={(e) => setNuevoNombres(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && agregarAlumno(g.id, g.alumnos.length)}
+                      placeholder="Nombres…"
+                      className="flex-1 text-sm border border-border rounded-md px-3 py-2 min-w-[140px]"
                     />
                     <button
                       onClick={() => agregarAlumno(g.id, g.alumnos.length)}

@@ -93,7 +93,7 @@ export function AttendanceClient({
     const { data, error } = await supabase
       .from('alumnos')
       .insert({ grupo_id: grupoId, nombre, orden })
-      .select('id, grupo_id, nombre, orden')
+      .select('id, grupo_id, nombre, apellidos, nombres, orden')
       .single();
     if (error || !data) return;
     setFilas((prev) => [...prev, { alumno: data, estatus: 'falto' }]);

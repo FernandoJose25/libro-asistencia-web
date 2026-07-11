@@ -13,6 +13,8 @@ export interface Alumno {
   id: string;
   grupo_id: string;
   nombre: string;
+  apellidos: string | null;
+  nombres: string | null;
   orden: number;
 }
 

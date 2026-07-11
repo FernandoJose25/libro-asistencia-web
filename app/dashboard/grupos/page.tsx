@@ -18,7 +18,7 @@ export default async function GruposPage() {
 
     const { data: alumnosTodos } = await supabase
         .from('alumnos')
-        .select('id, grupo_id, nombre, orden')
+        .select('id, grupo_id, nombre, apellidos, nombres, orden')
         .order('orden');
 
     const gruposConAlumnos = (gruposTodos || []).map((g) => ({

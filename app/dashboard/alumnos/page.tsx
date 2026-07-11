@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabaseServer';
 import { Topbar } from '@/components/Topbar';
 import { AlumnosReportTable, type DetalleFechas, type FilaReporteAlumno } from '@/components/AlumnosReportTable';
+import { ImportarAlumnosModal } from '@/components/ImportarAlumnosModal';
 
 export default async function AlumnosPage() {
     const supabase = supabaseServer();
@@ -22,7 +23,19 @@ export default async function AlumnosPage() {
             'alumno_id, nombre, grupo_id, grupo_nombre, horas_clase_semana, faltas_permitidas_semestre, dias_asistio, dias_tardanza, dias_falto, horas_falta_acumuladas, horas_falta_restantes'
         );
 
-    const filas = (reporte || []) as FilaReporteAlumno[];
+    // apellidos/nombres no están en la vista (agregados después); se cruzan
+    // aparte para no tener que tocar reporte_asistencia_alumno_v2.
+    const { data: alumnosDetalle } = await supabase.from('alumnos').select('id, apellidos, nombres');
+    const detalleNombre: Record<string, { apellidos: string | null; nombres: string | null }> = {};
+    (alumnosDetalle || []).forEach((a: any) => {
+        detalleNombre[a.id] = { apellidos: a.apellidos, nombres: a.nombres };
+    });
+
+    const filas = (reporte || []).map((f: any) => ({
+        ...f,
+        apellidos: detalleNombre[f.alumno_id]?.apellidos ?? null,
+        nombres: detalleNombre[f.alumno_id]?.nombres ?? null
+    })) as FilaReporteAlumno[];
 
     // Fechas exactas de cada falta/tardanza, para poder mostrarlas como
     // evidencia si el alumno pregunta o reclama qué día faltó.
@@ -49,7 +62,17 @@ export default async function AlumnosPage() {
     // Distingue "no tienes grupos" de "tus grupos existen pero están vacíos",
     // para no mandar al profesor a "crear un curso" cuando ya lo creó y solo
     // le falta agregar alumnos dentro.
-    const { count: totalGrupos } = await supabase.from('grupos').select('id', { count: 'exact', head: true });
+    const { data: gruposTodos, count: totalGrupos } = await supabase
+        .from('grupos')
+        .select('id, nombre', { count: 'exact' });
+
+    // Para el modal de importar se usa la lista completa de grupos del
+    // profesor (no solo los que ya tienen alumnos con asistencia, como
+    // "grupos" derivado de "filas"), para poder importar hacia un grupo
+    // recién creado y vacío.
+    const gruposParaImportar = (gruposTodos || [])
+        .map((g) => ({ id: g.id, nombre: g.nombre }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
     return (
         <>
@@ -58,6 +81,7 @@ export default async function AlumnosPage() {
                 <div className="max-w-[1020px] mx-auto px-8 py-7 pb-14">
                     <div className="flex items-center justify-between mb-1">
                         <h2 className="text-xl font-bold">Alumnos</h2>
+                        <ImportarAlumnosModal grupos={gruposParaImportar} />
                     </div>
                     <p className="text-[13px] text-inkSoft mb-5">
                         Reporte de asistencia de todos tus alumnos, con las fechas exactas de cada falta y tardanza.
