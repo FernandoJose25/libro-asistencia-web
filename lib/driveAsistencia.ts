@@ -7,6 +7,22 @@ import { driveClient, MIME_FOLDER, MIME_XLSX } from './drive';
 // GRUPOS/<Grupo>/<dd-mm-aaaa>/Clase N.xlsx — "buscar o crear" en cada nivel
 // para no duplicar carpetas ni archivos al reingresar el mismo día.
 
+// El profesor puede borrar carpetas directamente desde su Google Drive; el
+// carpeta_drive_id guardado en Supabase queda apuntando a un id que ya no
+// existe (o está en la papelera). Si no se detecta esto antes de reusar el
+// id como padre, Drive simplemente no encuentra hijos ahí y la app termina
+// recreando todo bajo una carpeta "fantasma", desincronizada de lo que el
+// profesor ve en su Drive real.
+async function carpetaExiste(accessToken: string, carpetaId: string): Promise<boolean> {
+  const drive = driveClient(accessToken);
+  try {
+    const res = await drive.files.get({ fileId: carpetaId, fields: 'id, trashed' });
+    return !res.data.trashed;
+  } catch {
+    return false;
+  }
+}
+
 export async function buscarOCrearCarpeta(accessToken: string, nombre: string, padreId?: string) {
   const drive = driveClient(accessToken);
   const padre = padreId || 'root';
@@ -85,6 +101,9 @@ export async function sincronizarAsistenciaADrive(
   }
 ) {
   if (opciones.carpetaDestinoId) {
+    if (!(await carpetaExiste(accessToken, opciones.carpetaDestinoId))) {
+      throw new Error('La carpeta seleccionada ya no existe en Drive (fue eliminada). Elige otra carpeta destino.');
+    }
     const archivoId = await buscarOEscribirExcel(
       accessToken,
       `Clase ${opciones.clase}.xlsx`,
@@ -94,8 +113,11 @@ export async function sincronizarAsistenciaADrive(
     return { archivoId, carpetaGrupoId: opciones.carpetaDestinoId };
   }
 
-  const carpetaGrupo =
-    opciones.carpetaGrupoId || (await crearCarpetaGrupo(accessToken, opciones.grupoNombre));
+  const carpetaGrupoGuardada =
+    opciones.carpetaGrupoId && (await carpetaExiste(accessToken, opciones.carpetaGrupoId))
+      ? opciones.carpetaGrupoId
+      : null;
+  const carpetaGrupo = carpetaGrupoGuardada || (await crearCarpetaGrupo(accessToken, opciones.grupoNombre));
   const carpetaFecha = await buscarOCrearCarpeta(accessToken, opciones.fechaCarpeta, carpetaGrupo);
 
   const archivoId = await buscarOEscribirExcel(
