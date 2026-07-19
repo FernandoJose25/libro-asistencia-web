@@ -6,11 +6,14 @@ import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno, Estatus } from '@/lib/types';
 import { sanitizarNombreArchivo } from '@/lib/utils';
 import { exportarAsistenciaExcel, exportarAsistenciaPDF } from '@/lib/exportAsistencia';
+import { formatearObservacion } from '@/lib/formatearAsistenciaExport';
 import { StatusPillGroup } from './StatusPill';
 import { SyncButton } from './SyncButton';
 import { AttendanceHeatmap } from './AttendanceHeatmap';
 import { AiSummaryButton } from './AiSummaryButton';
-import { JustificarPopover, MOTIVOS, type MotivoJustificacion } from './JustificarPopover';
+import { JustificarPopover, type MotivoJustificacion } from './JustificarPopover';
+import { MiniCalendario } from './MiniCalendario';
+import { SeleccionarCarpetaDriveModal } from './SeleccionarCarpetaDriveModal';
 
 interface RegistroInicial {
   estatus: Estatus;
@@ -94,6 +97,9 @@ export function AsistenciaClient({
   const [cargando, setCargando] = useState(false);
   const [errorSync, setErrorSync] = useState('');
   const [justificandoId, setJustificandoId] = useState<string | null>(null);
+  const [menuGuardarAbierto, setMenuGuardarAbierto] = useState(false);
+  const [modalCarpetaAbierto, setModalCarpetaAbierto] = useState(false);
+  const [guardandoManual, setGuardandoManual] = useState(false);
 
   useEffect(() => {
     setOnline(navigator.onLine);
@@ -224,11 +230,11 @@ export function AsistenciaClient({
     if (error) throw new Error(`No se pudo guardar en la base de datos: ${error.message}`);
   }
 
-  async function sincronizarConDrive() {
+  async function sincronizarConDrive(carpetaDestinoId?: string) {
     await fetch(`/api/asistencia/sync/${grupoId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha, clase })
+      body: JSON.stringify({ fecha, clase, carpetaDestinoId })
     });
   }
 
@@ -247,20 +253,34 @@ export function AsistenciaClient({
     }
   }
 
+  async function guardarEnCarpetaElegida(carpetaId: string) {
+    setModalCarpetaAbierto(false);
+    setGuardandoManual(true);
+    setErrorSync('');
+    try {
+      await guardarEnSupabase();
+      await sincronizarConDrive(carpetaId);
+      setDirty(false);
+    } catch (e: any) {
+      setErrorSync(e.message || 'No se pudo guardar en la carpeta elegida.');
+    } finally {
+      setGuardandoManual(false);
+    }
+  }
+
+  function guardarLocalmente() {
+    exportarExcel();
+    setMenuGuardarAbierto(false);
+  }
+
   function filasExport() {
-    return filas.map((f) => {
-      const motivoLabel = MOTIVOS.find((m) => m.valor === f.justificacionMotivo)?.label;
-      const justificacionTexto =
-        f.estatus === 'falto' && f.justificada
-          ? ` (justificada: ${motivoLabel || 'otro'}${f.justificacionDetalle ? ` — ${f.justificacionDetalle}` : ''})`
-          : '';
-      return {
-        nombre: f.alumno.nombre,
-        estatus: `${f.estatus}${justificacionTexto}`,
-        fecha: formatearFecha(fecha),
-        hora: formatearHora(f.marcadoEn)
-      };
-    });
+    return filas.map((f) => ({
+      nombre: f.alumno.nombre,
+      estatus: f.estatus,
+      observacion: formatearObservacion(f.estatus, f.justificada, f.justificacionMotivo, f.justificacionDetalle),
+      fecha: formatearFecha(fecha),
+      hora: formatearHora(f.marcadoEn)
+    }));
   }
 
   function exportarExcel() {
@@ -271,17 +291,63 @@ export function AsistenciaClient({
     exportarAsistenciaPDF(`${grupoNombre} — ${formatearFecha(fecha)} — Clase ${clase}`, filasExport());
   }
 
-  const faltas = filas.filter((f) => f.estatus === 'falto').length;
   const estadoSync = !online ? 'sin_conexion' : guardando ? 'guardando' : dirty ? 'pendiente' : 'sincronizado';
   const enRiesgoCount = Object.values(riesgoPorAlumno).filter((r) => r.enRiesgo).length;
+
+  const resumen = {
+    total: filas.length,
+    presentes: filas.filter((f) => f.estatus === 'asistio').length,
+    tardanzas: filas.filter((f) => f.estatus === 'tardanza').length,
+    ausentes: filas.filter((f) => f.estatus === 'falto').length,
+    justificados: filas.filter((f) => f.estatus === 'falto' && f.justificada).length
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-[900px] mx-auto px-4 md:px-8 py-5 md:py-6 pb-14">
         <div className="flex items-center justify-between mb-1 flex-wrap gap-2.5">
           <h2 className="text-xl font-bold">{grupoNombre}</h2>
-          <SyncButton estado={estadoSync} onSync={sincronizarTodo} />
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <SyncButton estado={estadoSync} onSync={sincronizarTodo} />
+            <div className="relative">
+              <button
+                onClick={() => setMenuGuardarAbierto((v) => !v)}
+                disabled={guardando || guardandoManual}
+                className="text-sm px-4 py-2 rounded-md bg-leaf text-white font-semibold disabled:opacity-60"
+              >
+                {guardandoManual ? 'Guardando…' : 'Guardar asistencia'}
+              </button>
+              {menuGuardarAbierto && (
+                <div className="absolute right-0 top-10 z-20 bg-white border border-border rounded-md shadow-lg w-64 py-1.5">
+                  <button
+                    onClick={() => { setMenuGuardarAbierto(false); sincronizarTodo(); }}
+                    className="w-full text-left px-3.5 py-2.5 text-sm hover:bg-leafSoft"
+                  >
+                    📁 Guardar en Drive (ruta automática)
+                  </button>
+                  <button
+                    onClick={() => { setMenuGuardarAbierto(false); setModalCarpetaAbierto(true); }}
+                    className="w-full text-left px-3.5 py-2.5 text-sm hover:bg-leafSoft"
+                  >
+                    🗂 Elegir carpeta en Drive…
+                  </button>
+                  <button
+                    onClick={guardarLocalmente}
+                    className="w-full text-left px-3.5 py-2.5 text-sm hover:bg-leafSoft"
+                  >
+                    ⬇ Guardar localmente (Excel)
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        <SeleccionarCarpetaDriveModal
+          abierto={modalCarpetaAbierto}
+          onCerrar={() => setModalCarpetaAbierto(false)}
+          onConfirmar={(carpetaId) => guardarEnCarpetaElegida(carpetaId)}
+        />
 
         {errorSync && (
           <div className="mt-3 mb-1 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5 text-sm text-red">
@@ -306,75 +372,94 @@ export function AsistenciaClient({
           </Link>
         </div>
 
-        <div className="flex items-center gap-2 mb-4 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap">
-          <span className="text-xs text-inkSoft mr-1">Fecha:</span>
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => cambiarFecha(e.target.value)}
-            className="text-xs border border-border rounded px-2 py-1.5"
-          />
+        <div className="flex flex-col sm:flex-row gap-4 mb-4 mt-3">
+          <MiniCalendario fechaSeleccionada={fecha} onSeleccionar={cambiarFecha} />
 
-          <span className="text-xs text-inkSoft ml-3 mr-1">Clase:</span>
-          <button
-            onClick={() => cambiarClase(1)}
-            className={`text-xs px-3.5 py-1.5 rounded-full border ${clase === 1 ? 'bg-navy border-navy text-white font-semibold' : 'border-border text-inkSoft'}`}
-          >
-            Clase 1
-          </button>
-          <button
-            onClick={() => cambiarClase(2)}
-            className={`text-xs px-3.5 py-1.5 rounded-full border ${clase === 2 ? 'bg-navy border-navy text-white font-semibold' : 'border-border text-inkSoft'}`}
-          >
-            Clase 2
-          </button>
+          <div className="flex-1 flex flex-col gap-3">
+            <div className="flex items-center gap-2 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap">
+              <span className="text-xs text-inkSoft mr-1">Clase:</span>
+              <button
+                onClick={() => cambiarClase(1)}
+                className={`text-xs px-3.5 py-1.5 rounded-full border ${clase === 1 ? 'bg-leaf border-leaf text-white font-semibold' : 'border-border text-inkSoft'}`}
+              >
+                Clase 1
+              </button>
+              <button
+                onClick={() => cambiarClase(2)}
+                className={`text-xs px-3.5 py-1.5 rounded-full border ${clase === 2 ? 'bg-leaf border-leaf text-white font-semibold' : 'border-border text-inkSoft'}`}
+              >
+                Clase 2
+              </button>
 
-          <button
-            onClick={marcarTodosPresentes}
-            className="text-xs px-3.5 py-1.5 rounded-full border border-border text-inkSoft hover:bg-bg font-semibold ml-3"
-          >
-            ✓ Marcar todos presentes
-          </button>
+              <button
+                onClick={marcarTodosPresentes}
+                className="text-xs px-3.5 py-1.5 rounded-full border border-border text-inkSoft hover:bg-bg font-semibold ml-3"
+              >
+                ✓ Marcar todos presentes
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
+                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Total</div>
+                <div className="text-lg font-bold">{resumen.total}</div>
+              </div>
+              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
+                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Presentes</div>
+                <div className="text-lg font-bold text-green">{resumen.presentes}</div>
+              </div>
+              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
+                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Ausentes</div>
+                <div className="text-lg font-bold text-red">{resumen.ausentes}</div>
+              </div>
+              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
+                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Justificados</div>
+                <div className="text-lg font-bold text-amber">{resumen.justificados}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className={`bg-white border border-border rounded-card overflow-x-auto ${cargando ? 'opacity-50 pointer-events-none' : ''}`}>
-          <div className="min-w-[560px]">
-            <div className="grid grid-cols-[1fr_300px_120px] px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border">
-              <span>Alumno</span><span>Asistencia</span><span>Justificar</span>
+          <div className="min-w-[620px]">
+            <div className="grid grid-cols-[1fr_220px_260px] px-4 py-2.5 text-[11px] uppercase tracking-wide text-inkSoft border-b border-border">
+              <span>Alumno</span><span>Estado</span><span>Observación</span>
             </div>
             {filas.map((f) => {
               const riesgo = riesgoPorAlumno[f.alumno.id];
+              const observacion = formatearObservacion(f.estatus, f.justificada, f.justificacionMotivo, f.justificacionDetalle);
               return (
               <div
                 key={f.alumno.id}
-                className="grid grid-cols-[1fr_300px_120px] items-center px-4 py-2.5 border-b border-border last:border-b-0"
+                className="grid grid-cols-[1fr_220px_260px] items-center px-4 py-2.5 border-b border-border last:border-b-0"
               >
                 <span className="text-sm flex items-center gap-1.5">
                   {f.alumno.nombre}
                   {riesgo?.enRiesgo && (
                     <span title={`${riesgo.porcentajeFalta}% de falta acumulada`} className="text-red text-xs">⚠️</span>
                   )}
-                  {f.estatus === 'falto' && f.justificada && (
-                    <span
-                      title={`${MOTIVOS.find((m) => m.valor === f.justificacionMotivo)?.label || 'Otro'}${f.justificacionDetalle ? ` — ${f.justificacionDetalle}` : ''}`}
-                      className="text-green text-xs"
-                    >
-                      ✓ justificada
-                    </span>
-                  )}
                 </span>
                 <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
-                {f.estatus === 'falto' && (
-                  <JustificarPopover
-                    justificada={f.justificada}
-                    motivo={f.justificacionMotivo}
-                    detalle={f.justificacionDetalle}
-                    abierto={justificandoId === f.alumno.id}
-                    onAbrir={() => setJustificandoId(f.alumno.id)}
-                    onCerrar={() => setJustificandoId(null)}
-                    onGuardar={(motivo, detalle) => guardarJustificacion(f.alumno.id, motivo, detalle)}
-                    onQuitar={() => { quitarJustificacion(f.alumno.id); setJustificandoId(null); }}
-                  />
+                {f.estatus === 'falto' ? (
+                  <div className="flex items-center gap-2">
+                    {observacion && (
+                      <span className="text-xs text-leafDark truncate flex-1" title={observacion}>
+                        {observacion}
+                      </span>
+                    )}
+                    <JustificarPopover
+                      justificada={f.justificada}
+                      motivo={f.justificacionMotivo}
+                      detalle={f.justificacionDetalle}
+                      abierto={justificandoId === f.alumno.id}
+                      onAbrir={() => setJustificandoId(f.alumno.id)}
+                      onCerrar={() => setJustificandoId(null)}
+                      onGuardar={(motivo, detalle) => guardarJustificacion(f.alumno.id, motivo, detalle)}
+                      onQuitar={() => { quitarJustificacion(f.alumno.id); setJustificandoId(null); }}
+                    />
+                  </div>
+                ) : (
+                  <span className="text-xs text-inkSoft">—</span>
                 )}
               </div>
               );
@@ -386,10 +471,6 @@ export function AsistenciaClient({
               </div>
             )}
           </div>
-        </div>
-
-        <div className="text-xs text-inkSoft mt-3">
-          <b>{faltas}</b> falta(s) — {formatearFecha(fecha)}, Clase {clase}.
         </div>
 
         <div className="flex gap-2.5 mt-6">

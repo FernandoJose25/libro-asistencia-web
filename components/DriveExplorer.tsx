@@ -73,17 +73,6 @@ export function DriveExplorer({ carpetaInicial }: { carpetaInicial?: string }) {
     setCarpetaId(id);
   }
 
-  async function usarParaAsistencia(item: ItemDrive) {
-    const res = await fetch('/api/drive/create-attendance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ archivoId: item.id, nombre: item.nombre, mimeType: item.mimeType })
-    });
-    if (!res.ok) { setError('No se pudo preparar este archivo para asistencia.'); return; }
-    const data = await res.json();
-    router.push(`/dashboard/grupo/${data.grupoId}`);
-  }
-
   async function subirArchivos(files: FileList | null) {
     if (!files || files.length === 0) return;
     setSubiendo(true);
@@ -256,14 +245,6 @@ export function DriveExplorer({ carpetaInicial }: { carpetaInicial?: string }) {
             <p className="text-xs text-inkSoft mb-4">{seleccionado.mimeType}</p>
 
             <div className="flex flex-col gap-2">
-              {seleccionado.esAsistencia && (
-                <button
-                  onClick={() => usarParaAsistencia(seleccionado)}
-                  className="w-full py-2.5 rounded-md bg-navy text-white text-sm font-semibold"
-                >
-                  ✅ Usar para asistencia
-                </button>
-              )}
               {seleccionado.webViewLink && (
                 <a
                   href={seleccionado.webViewLink}

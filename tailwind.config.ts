@@ -16,7 +16,10 @@ const config: Config = {
         inkSoft: '#6f7a8b',
         green: '#2f9e58',
         amber: '#d99a2b',
-        red: '#d1495b'
+        red: '#d1495b',
+        leaf: '#2f9e58',
+        leafDark: '#227a43',
+        leafSoft: '#e8f5ec'
       },
       borderRadius: {
         card: '8px'
