@@ -2,13 +2,16 @@ import { NextResponse } from 'next/server';
 import { contextoDrive } from '@/lib/driveContext';
 import { sincronizarAsistenciaADrive } from '@/lib/driveAsistencia';
 import { sanitizarNombreArchivo } from '@/lib/utils';
+import { formatearObservacion } from '@/lib/formatearAsistenciaExport';
+import type { Estatus } from '@/lib/types';
+import type { MotivoJustificacion } from '@/components/JustificarPopover';
 
 export async function POST(request: Request, { params }: { params: { grupoId: string } }) {
   const ctx = await contextoDrive();
   if (ctx.error) return ctx.error;
   const { session, accessToken, supabase } = ctx;
 
-  const { fecha, clase } = await request.json();
+  const { fecha, clase, carpetaDestinoId } = await request.json();
   if (!fecha || (clase !== 1 && clase !== 2)) {
     return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 });
   }
@@ -36,22 +39,20 @@ export async function POST(request: Request, { params }: { params: { grupoId: st
     .eq('fecha', fecha)
     .eq('clase', clase);
 
-  const MOTIVO_LABEL: Record<string, string> = { salud: 'Salud', imprevisto: 'Imprevisto', otro: 'Otro' };
   const mapaRegistros = new Map((registros || []).map((r) => [r.alumno_id, r]));
   const [anio, mes, dia] = (fecha as string).split('-');
 
   const filas = (alumnos || []).map((a) => {
     const registro = mapaRegistros.get(a.id);
     const marcadoEn = registro?.marcado_en ? new Date(registro.marcado_en) : null;
-    const estatus = registro?.estatus || 'falto';
-    let estatusTexto: string = estatus;
-    if (estatus === 'falto' && registro?.justificada) {
-      const motivoLabel = MOTIVO_LABEL[registro.justificacion_motivo || 'otro'] || 'Otro';
-      estatusTexto = `falto (justificada: ${motivoLabel}${registro.justificacion_detalle ? ` — ${registro.justificacion_detalle}` : ''})`;
-    }
+    const estatus = (registro?.estatus || 'falto') as Estatus;
+    const justificada = registro?.justificada || false;
+    const motivo = (registro?.justificacion_motivo || null) as MotivoJustificacion | null;
+    const detalle = registro?.justificacion_detalle || null;
     return {
       nombre: a.nombre,
-      estatus: estatusTexto,
+      estatus,
+      observacion: formatearObservacion(estatus, justificada, motivo, detalle),
       fecha: `${dia}/${mes}/${anio}`,
       hora: marcadoEn
         ? marcadoEn.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -65,10 +66,11 @@ export async function POST(request: Request, { params }: { params: { grupoId: st
       carpetaGrupoId: grupo.carpeta_drive_id,
       fechaCarpeta: `${dia}-${mes}-${anio}`,
       clase: clase as 1 | 2,
-      filas
+      filas,
+      carpetaDestinoId: carpetaDestinoId || undefined
     });
 
-    if (carpetaGrupoId !== grupo.carpeta_drive_id) {
+    if (!carpetaDestinoId && carpetaGrupoId !== grupo.carpeta_drive_id) {
       await supabase.from('grupos').update({ carpeta_drive_id: carpetaGrupoId }).eq('id', grupo.id);
     }
   } catch (e: any) {

@@ -30,13 +30,13 @@ async function buscarOEscribirExcel(
   accessToken: string,
   nombreArchivo: string,
   carpetaId: string,
-  filas: { nombre: string; estatus: string; fecha: string; hora: string }[]
+  filas: { nombre: string; estatus: string; observacion: string; fecha: string; hora: string }[]
 ) {
   const drive = driveClient(accessToken);
 
   const ws = XLSX.utils.aoa_to_sheet([
-    ['Nombre', 'Estatus', 'Fecha', 'Hora'],
-    ...filas.map((f) => [f.nombre, f.estatus, f.fecha, f.hora])
+    ['Nombre', 'Estado', 'Observación', 'Fecha', 'Hora'],
+    ...filas.map((f) => [f.nombre, f.estatus, f.observacion, f.fecha, f.hora])
   ]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Asistencia');
@@ -80,9 +80,20 @@ export async function sincronizarAsistenciaADrive(
     carpetaGrupoId?: string | null; // si ya se conoce, evita rebuscar GRUPOS/<Grupo>
     fechaCarpeta: string; // dd-mm-aaaa
     clase: 1 | 2;
-    filas: { nombre: string; estatus: string; fecha: string; hora: string }[];
+    filas: { nombre: string; estatus: string; observacion: string; fecha: string; hora: string }[];
+    carpetaDestinoId?: string; // si viene, se guarda ahí directo, sin la jerarquía GRUPOS/Grupo/fecha
   }
 ) {
+  if (opciones.carpetaDestinoId) {
+    const archivoId = await buscarOEscribirExcel(
+      accessToken,
+      `Clase ${opciones.clase}.xlsx`,
+      opciones.carpetaDestinoId,
+      opciones.filas
+    );
+    return { archivoId, carpetaGrupoId: opciones.carpetaDestinoId };
+  }
+
   const carpetaGrupo =
     opciones.carpetaGrupoId || (await crearCarpetaGrupo(accessToken, opciones.grupoNombre));
   const carpetaFecha = await buscarOCrearCarpeta(accessToken, opciones.fechaCarpeta, carpetaGrupo);
