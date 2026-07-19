@@ -231,11 +231,15 @@ export function AsistenciaClient({
   }
 
   async function sincronizarConDrive(carpetaDestinoId?: string) {
-    await fetch(`/api/asistencia/sync/${grupoId}`, {
+    const res = await fetch(`/api/asistencia/sync/${grupoId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fecha, clase, carpetaDestinoId })
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || 'No se pudo sincronizar con Drive.');
+    }
   }
 
   async function sincronizarTodo() {
