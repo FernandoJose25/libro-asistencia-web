@@ -323,7 +323,7 @@ export function AsistenciaClient({
                 {guardandoManual ? 'Guardando…' : 'Guardar asistencia'}
               </button>
               {menuGuardarAbierto && (
-                <div className="absolute right-0 top-10 z-20 bg-white border border-border rounded-md shadow-lg w-64 py-1.5">
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-10 z-20 bg-white border border-border rounded-md shadow-lg w-64 max-w-[calc(100vw-2rem)] py-1.5">
                   <button
                     onClick={() => { setMenuGuardarAbierto(false); sincronizarTodo(); }}
                     className="w-full text-left px-3.5 py-2.5 text-sm hover:bg-leafSoft"
