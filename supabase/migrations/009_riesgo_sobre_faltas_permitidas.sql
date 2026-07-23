@@ -16,7 +16,7 @@
 -- Las horas de clase por semana NO intervienen en el riesgo; quedan solo como
 -- dato contextual y para estadísticas/equivalencias futuras.
 
-create or replace view public.riesgo_por_alumno_v2 as
+create or replace view riesgo_por_alumno_v2 as
 select
   a.id as alumno_id,
   a.nombre,
@@ -47,7 +47,7 @@ select
       then true
     else false
   end as en_riesgo
-from public.alumnos a
-join public.grupos g on g.id = a.grupo_id
-left join public.horas_falta_por_alumno_v2 h on h.alumno_id = a.id
-left join public.horas_dictadas_por_grupo_v2 s on s.grupo_id = a.grupo_id;
+from alumnos a
+join grupos g on g.id = a.grupo_id
+left join horas_falta_por_alumno_v2 h on h.alumno_id = a.id
+left join horas_dictadas_por_grupo_v2 s on s.grupo_id = a.grupo_id;
