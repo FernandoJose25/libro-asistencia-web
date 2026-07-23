@@ -50,12 +50,12 @@ export default async function AsistenciaGrupoPage({ params }: { params: { grupoI
   // Riesgo por alumno (umbral configurable) y calendario de asistencia (heatmap).
   const { data: riesgoRows } = await supabase
     .from('riesgo_por_alumno_v2')
-    .select('alumno_id, porcentaje_falta, en_riesgo')
+    .select('alumno_id, porcentaje_falta, horas_falta_total, en_riesgo')
     .eq('grupo_id', grupo.id);
 
-  const riesgoPorAlumno: Record<string, { porcentajeFalta: number; enRiesgo: boolean }> = {};
+  const riesgoPorAlumno: Record<string, { porcentajeFalta: number; totalFaltas: number; enRiesgo: boolean }> = {};
   (riesgoRows || []).forEach((r) => {
-    riesgoPorAlumno[r.alumno_id] = { porcentajeFalta: r.porcentaje_falta, enRiesgo: r.en_riesgo };
+    riesgoPorAlumno[r.alumno_id] = { porcentajeFalta: r.porcentaje_falta, totalFaltas: r.horas_falta_total, enRiesgo: r.en_riesgo };
   });
 
   const { data: registrosTodos } = await supabase
