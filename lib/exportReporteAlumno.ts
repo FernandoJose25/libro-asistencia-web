@@ -24,7 +24,7 @@ export function exportarReporteAlumnoPDF(r: ReporteAlumnoPDF) {
     : '<li style="color:#888;">Sin faltas registradas.</li>';
   const filasTardanzas = r.tardanzas.length
     ? r.tardanzas.map((f) => `<li>${f}</li>`).join('')
-    : '<li style="color:#888;">Sin tardanzas registradas.</li>';
+    : '<li style="color:#888;">Sin retardos registrados.</li>';
 
   ventana.document.write(`
     <html><head><title>Reporte de asistencia — ${r.nombre}</title></head>
@@ -35,7 +35,7 @@ export function exportarReporteAlumnoPDF(r: ReporteAlumnoPDF) {
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         <tbody>
           <tr><td style="padding:6px 10px;border-bottom:1px solid #ddd;">Días asistidos</td><td style="padding:6px 10px;border-bottom:1px solid #ddd;">${r.diasAsistio}</td></tr>
-          <tr><td style="padding:6px 10px;border-bottom:1px solid #ddd;">Tardanzas</td><td style="padding:6px 10px;border-bottom:1px solid #ddd;">${r.diasTardanza}</td></tr>
+          <tr><td style="padding:6px 10px;border-bottom:1px solid #ddd;">Retardos</td><td style="padding:6px 10px;border-bottom:1px solid #ddd;">${r.diasTardanza}</td></tr>
           <tr><td style="padding:6px 10px;border-bottom:1px solid #ddd;">Faltas</td><td style="padding:6px 10px;border-bottom:1px solid #ddd;">${r.diasFalto}</td></tr>
           <tr><td style="padding:6px 10px;border-bottom:1px solid #ddd;">Horas de falta acumuladas</td><td style="padding:6px 10px;border-bottom:1px solid #ddd;">${r.horasFaltaAcumuladas}</td></tr>
           <tr><td style="padding:6px 10px;border-bottom:1px solid #ddd;">Faltas restantes permitidas</td><td style="padding:6px 10px;border-bottom:1px solid #ddd;">${r.horasFaltaRestantes} / ${r.faltasPermitidasSemestre}</td></tr>
