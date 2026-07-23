@@ -301,6 +301,7 @@ export function AsistenciaClient({
   const resumen = {
     total: filas.length,
     presentes: filas.filter((f) => f.estatus === 'asistio' || f.estatus === 'tardanza').length,
+    aTiempo: filas.filter((f) => f.estatus === 'asistio').length,
     tardanzas: filas.filter((f) => f.estatus === 'tardanza').length,
     ausentes: filas.filter((f) => f.estatus === 'falto').length,
     justificados: filas.filter((f) => f.estatus === 'falto' && f.justificada).length
@@ -403,26 +404,32 @@ export function AsistenciaClient({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="bg-white border border-border rounded-card px-3.5 py-2.5 flex items-center justify-between">
                 <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Total</div>
-                <div className="text-lg font-bold">{resumen.total}</div>
+                <div className="text-xl font-bold">{resumen.total}</div>
               </div>
+
               <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
-                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Presentes</div>
-                <div className="text-lg font-bold text-green">{resumen.presentes}</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Presentes</div>
+                  <div className="text-xl font-bold text-green">{resumen.presentes}</div>
+                </div>
+                <div className="flex gap-4 mt-1.5 text-[11.5px]">
+                  <div className="text-inkSoft">A tiempo <span className="font-semibold text-green">{resumen.aTiempo}</span></div>
+                  <div className="text-inkSoft">Retardos <span className="font-semibold text-amber">{resumen.tardanzas}</span></div>
+                </div>
               </div>
+
               <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
-                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Ausentes</div>
-                <div className="text-lg font-bold text-red">{resumen.ausentes}</div>
-              </div>
-              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
-                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Retardos</div>
-                <div className="text-lg font-bold text-amber">{resumen.tardanzas}</div>
-              </div>
-              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
-                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Faltas justificadas</div>
-                <div className="text-lg font-bold text-amber">{resumen.justificados}</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Faltas</div>
+                  <div className="text-xl font-bold text-red">{resumen.ausentes}</div>
+                </div>
+                <div className="flex gap-4 mt-1.5 text-[11.5px]">
+                  <div className="text-inkSoft">Totales <span className="font-semibold text-red">{resumen.ausentes}</span></div>
+                  <div className="text-inkSoft">Justificadas <span className="font-semibold text-amber">{resumen.justificados}</span></div>
+                </div>
               </div>
             </div>
           </div>
