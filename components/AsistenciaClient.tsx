@@ -362,10 +362,25 @@ export function AsistenciaClient({
         )}
 
         {enRiesgoCount > 0 && (
-          <div className="flex items-center justify-between gap-2 mt-3 mb-1 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5">
-            <span className="text-sm text-red">
-              ⚠️ <b>{enRiesgoCount}</b> alumno(s) en riesgo (superan el {umbral}% de falta configurado para este grupo).
-            </span>
+          <div className="mt-3 mb-1 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5">
+            <div className="text-sm text-red font-semibold mb-1.5">
+              ⚠️ {enRiesgoCount} alumno(s) en riesgo (superan el {umbral}% de falta configurado para este grupo).
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {filas
+                .filter((f) => riesgoPorAlumno[f.alumno.id]?.enRiesgo)
+                .map((f) => {
+                  const nombre =
+                    f.alumno.apellidos && f.alumno.nombres
+                      ? `${f.alumno.apellidos}, ${f.alumno.nombres}`
+                      : f.alumno.nombre;
+                  return (
+                    <div key={f.alumno.id} className="text-[12.5px] text-red">
+                      {nombre} — <b>{riesgoPorAlumno[f.alumno.id].totalFaltas}/{faltasPermitidasSemestre}</b> faltas
+                    </div>
+                  );
+                })}
+            </div>
           </div>
         )}
 
