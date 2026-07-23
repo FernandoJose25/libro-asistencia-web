@@ -45,7 +45,7 @@ export function exportarReporteAlumnoPDF(r: ReporteAlumnoPDF) {
       <h3 style="color:#b91c1c;">Faltó (${r.faltas.length})</h3>
       <ul>${filasFaltas}</ul>
 
-      <h3 style="color:#b45309;">Llegó tarde (${r.tardanzas.length})</h3>
+      <h3 style="color:#b45309;">Retardos (${r.tardanzas.length})</h3>
       <ul>${filasTardanzas}</ul>
 
       <script>window.onload = () => window.print();</script>
