@@ -298,6 +298,9 @@ export function AsistenciaClient({
 
   const estadoSync = !online ? 'sin_conexion' : guardando ? 'guardando' : dirty ? 'pendiente' : 'sincronizado';
   const enRiesgoCount = Object.values(riesgoPorAlumno).filter((r) => r.enRiesgo).length;
+  // Faltas que activan la alerta: tope permitido * umbral (redondeo hacia arriba).
+  const faltasParaAlerta =
+    faltasPermitidasSemestre > 0 ? Math.ceil(faltasPermitidasSemestre * (umbral / 100)) : 0;
 
   const resumen = {
     total: filas.length,
@@ -364,19 +367,20 @@ export function AsistenciaClient({
         {enRiesgoCount > 0 && (
           <div className="mt-3 mb-1 bg-red/10 border border-red/30 rounded-card px-3.5 py-2.5">
             <div className="text-sm text-red font-semibold mb-1.5">
-              ⚠️ {enRiesgoCount} alumno(s) en riesgo (superan el {umbral}% de falta configurado para este grupo).
+              ⚠️ {enRiesgoCount} estudiante{enRiesgoCount === 1 ? '' : 's'} {enRiesgoCount === 1 ? 'ha' : 'han'} superado el umbral de inasistencias ({umbral}%).
             </div>
             <div className="flex flex-col gap-0.5">
               {filas
                 .filter((f) => riesgoPorAlumno[f.alumno.id]?.enRiesgo)
                 .map((f) => {
+                  const r = riesgoPorAlumno[f.alumno.id];
                   const nombre =
                     f.alumno.apellidos && f.alumno.nombres
                       ? `${f.alumno.apellidos}, ${f.alumno.nombres}`
                       : f.alumno.nombre;
                   return (
                     <div key={f.alumno.id} className="text-[12.5px] text-red">
-                      {nombre} — <b>{riesgoPorAlumno[f.alumno.id].totalFaltas}/{faltasPermitidasSemestre}</b> faltas
+                      🔴 {nombre} — <b>{r.totalFaltas}/{faltasPermitidasSemestre}</b> faltas ({r.porcentajeFalta}%)
                     </div>
                   );
                 })}
@@ -386,7 +390,7 @@ export function AsistenciaClient({
 
         <div className="flex items-center gap-2 mb-2 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap mt-3">
           <span className="text-[11.5px] text-inkSoft">
-            ⚙ Umbral: {umbral}% · Horas/semana: {horasClaseSemana} · Faltas permitidas/semestre: {faltasPermitidasSemestre}
+            ⚙ Umbral: {umbral}% · Alerta desde: {faltasParaAlerta} falta{faltasParaAlerta === 1 ? '' : 's'} · Máximo permitido: {faltasPermitidasSemestre} · Horas/semana: {horasClaseSemana}
           </span>
           <Link href="/dashboard/grupos" className="text-[11.5px] text-goldDark font-semibold hover:underline ml-1">
             Editar en Grupos →

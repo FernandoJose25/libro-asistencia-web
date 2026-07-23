@@ -26,7 +26,7 @@ export default async function DashboardPage() {
 
   const { data: enRiesgo } = await supabase
     .from('riesgo_por_alumno_v2')
-    .select('nombre, grupo_id, grupo_nombre, porcentaje_falta, horas_falta_total')
+    .select('nombre, grupo_id, grupo_nombre, porcentaje_falta, horas_falta_total, faltas_permitidas_semestre')
     .eq('profesor_id', session.user.id)
     .eq('en_riesgo', true)
     .order('horas_falta_total', { ascending: false });
@@ -47,7 +47,7 @@ export default async function DashboardPage() {
           {(enRiesgo || []).length > 0 && (
             <div className="bg-red/10 border border-red/30 rounded-card p-4 mb-6">
               <div className="text-sm text-red font-semibold mb-2">
-                ⚠️ {enRiesgo!.length} alumno(s) en riesgo por inasistencia
+                ⚠️ {enRiesgo!.length} estudiante{enRiesgo!.length === 1 ? '' : 's'} {enRiesgo!.length === 1 ? 'ha' : 'han'} superado el umbral de inasistencias
               </div>
               <div className="flex flex-col gap-1">
                 {enRiesgo!.slice(0, 6).map((r: any, i: number) => (
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
                     href={`/dashboard/asistencia/${r.grupo_id}`}
                     className="text-[12.5px] text-ink hover:underline"
                   >
-                    {r.nombre} — {r.grupo_nombre} ({r.horas_falta_total} falta{r.horas_falta_total === 1 ? '' : 's'})
+                    🔴 {r.nombre} — {r.grupo_nombre} ({r.horas_falta_total}/{r.faltas_permitidas_semestre} faltas · {r.porcentaje_falta}%)
                   </Link>
                 ))}
                 {enRiesgo!.length > 6 && (
