@@ -163,8 +163,8 @@ export function AlumnosReportTable({
                                         </ul>
                                     </div>
                                     <div>
-                                        <div className="text-amber font-semibold mb-1.5">Llegó tarde ({detalle.tardanzas.length})</div>
-                                        {detalle.tardanzas.length === 0 && <div className="text-inkSoft">Sin tardanzas registradas.</div>}
+                                        <div className="text-amber font-semibold mb-1.5">Retardos ({detalle.tardanzas.length})</div>
+                                        {detalle.tardanzas.length === 0 && <div className="text-inkSoft">Sin retardos registrados.</div>}
                                         <ul className="flex flex-col gap-1">
                                             {detalle.tardanzas.map((d) => (
                                                 <li key={d} className="text-ink">

@@ -300,7 +300,7 @@ export function AsistenciaClient({
 
   const resumen = {
     total: filas.length,
-    presentes: filas.filter((f) => f.estatus === 'asistio').length,
+    presentes: filas.filter((f) => f.estatus === 'asistio' || f.estatus === 'tardanza').length,
     tardanzas: filas.filter((f) => f.estatus === 'tardanza').length,
     ausentes: filas.filter((f) => f.estatus === 'falto').length,
     justificados: filas.filter((f) => f.estatus === 'falto' && f.justificada).length
