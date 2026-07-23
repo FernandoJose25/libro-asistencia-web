@@ -16,7 +16,11 @@
 -- Las horas de clase por semana NO intervienen en el riesgo; quedan solo como
 -- dato contextual y para estadísticas/equivalencias futuras.
 
-create or replace view riesgo_por_alumno_v2 as
+-- create or replace no permite reordenar/renombrar columnas existentes de la
+-- vista, así que la recreamos desde cero.
+drop view if exists riesgo_por_alumno_v2;
+
+create view riesgo_por_alumno_v2 as
 select
   a.id as alumno_id,
   a.nombre,
