@@ -288,11 +288,11 @@ export function AsistenciaClient({
   }
 
   function exportarExcel() {
-    exportarAsistenciaExcel(`${nombreArchivoBase}-${fecha}-clase${clase}`, filasExport());
+    exportarAsistenciaExcel(`${nombreArchivoBase}-${fecha}-hora${clase}`, filasExport());
   }
 
   function exportarPDF() {
-    exportarAsistenciaPDF(`${grupoNombre} — ${formatearFecha(fecha)} — Clase ${clase}`, filasExport());
+    exportarAsistenciaPDF(`${grupoNombre} — ${formatearFecha(fecha)} — Hora ${clase}`, filasExport());
   }
 
   const estadoSync = !online ? 'sin_conexion' : guardando ? 'guardando' : dirty ? 'pendiente' : 'sincronizado';
