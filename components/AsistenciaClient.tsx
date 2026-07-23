@@ -382,18 +382,18 @@ export function AsistenciaClient({
 
           <div className="flex-1 flex flex-col gap-3">
             <div className="flex items-center gap-2 bg-white border border-border rounded-card px-3.5 py-2.5 flex-wrap">
-              <span className="text-xs text-inkSoft mr-1">Clase:</span>
+              <span className="text-xs text-inkSoft mr-1">Hora:</span>
               <button
                 onClick={() => cambiarClase(1)}
                 className={`text-xs px-3.5 py-1.5 rounded-full border ${clase === 1 ? 'bg-leaf border-leaf text-white font-semibold' : 'border-border text-inkSoft'}`}
               >
-                Clase 1
+                Hora 1
               </button>
               <button
                 onClick={() => cambiarClase(2)}
                 className={`text-xs px-3.5 py-1.5 rounded-full border ${clase === 2 ? 'bg-leaf border-leaf text-white font-semibold' : 'border-border text-inkSoft'}`}
               >
-                Clase 2
+                Hora 2
               </button>
 
               <button
