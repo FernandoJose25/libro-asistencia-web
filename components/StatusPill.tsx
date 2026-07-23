@@ -4,7 +4,7 @@ import { Estatus } from '@/lib/types';
 
 const OPCIONES: { estatus: Estatus; label: string }[] = [
   { estatus: 'asistio', label: 'Asistió' },
-  { estatus: 'tardanza', label: 'Tardanza' },
+  { estatus: 'tardanza', label: 'Retardo' },
   { estatus: 'falto', label: 'Faltó' }
 ];
 
