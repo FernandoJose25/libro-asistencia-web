@@ -18,9 +18,9 @@ interface GrupoConAlumnos {
 }
 
 interface ConfigEdit {
-  umbral: number;
-  horasClaseSemana: number;
-  faltasPermitidasSemestre: number;
+  umbral: string;
+  horasClaseSemana: string;
+  faltasPermitidasSemestre: string;
 }
 
 export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
@@ -122,9 +122,9 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        umbralFaltaPorcentaje: config.umbral,
-        horasClaseSemana: config.horasClaseSemana,
-        faltasPermitidasSemestre: config.faltasPermitidasSemestre
+        umbralFaltaPorcentaje: Number(config.umbral) || 0,
+        horasClaseSemana: Number(config.horasClaseSemana) || 0,
+        faltasPermitidasSemestre: Number(config.faltasPermitidasSemestre) || 0
       })
     });
     setGuardandoConfig(null);
@@ -147,9 +147,9 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
       {grupos.map((g) => {
         const expandido = expandidoId === g.id;
         const config = configEdit[g.id] ?? {
-          umbral: g.umbral_falta_porcentaje,
-          horasClaseSemana: g.horas_clase_semana,
-          faltasPermitidasSemestre: g.faltas_permitidas_semestre
+          umbral: String(g.umbral_falta_porcentaje),
+          horasClaseSemana: String(g.horas_clase_semana),
+          faltasPermitidasSemestre: String(g.faltas_permitidas_semestre)
         };
         const setConfig = (cambios: Partial<ConfigEdit>) =>
           setConfigEdit((prev) => ({ ...prev, [g.id]: { ...config, ...cambios } }));
@@ -184,7 +184,7 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                     min={1}
                     max={100}
                     value={config.umbral}
-                    onChange={(e) => setConfig({ umbral: Number(e.target.value) })}
+                    onChange={(e) => setConfig({ umbral: e.target.value })}
                     className="w-16 text-xs border border-border rounded px-2 py-1"
                   />
                   <span className="text-[11.5px] text-inkSoft">%</span>
@@ -194,7 +194,7 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                     type="number"
                     min={0}
                     value={config.horasClaseSemana}
-                    onChange={(e) => setConfig({ horasClaseSemana: Number(e.target.value) })}
+                    onChange={(e) => setConfig({ horasClaseSemana: e.target.value })}
                     className="w-16 text-xs border border-border rounded px-2 py-1"
                   />
 
@@ -203,7 +203,7 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                     type="number"
                     min={0}
                     value={config.faltasPermitidasSemestre}
-                    onChange={(e) => setConfig({ faltasPermitidasSemestre: Number(e.target.value) })}
+                    onChange={(e) => setConfig({ faltasPermitidasSemestre: e.target.value })}
                     className="w-16 text-xs border border-border rounded px-2 py-1"
                   />
 
