@@ -403,7 +403,7 @@ export function AsistenciaClient({
               </button>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
               <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
                 <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Total</div>
                 <div className="text-lg font-bold">{resumen.total}</div>
@@ -417,7 +417,11 @@ export function AsistenciaClient({
                 <div className="text-lg font-bold text-red">{resumen.ausentes}</div>
               </div>
               <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
-                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Justificados</div>
+                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Retardos</div>
+                <div className="text-lg font-bold text-amber">{resumen.tardanzas}</div>
+              </div>
+              <div className="bg-white border border-border rounded-card px-3.5 py-2.5">
+                <div className="text-[10.5px] uppercase tracking-wide text-inkSoft">Faltas justificadas</div>
                 <div className="text-lg font-bold text-amber">{resumen.justificados}</div>
               </div>
             </div>

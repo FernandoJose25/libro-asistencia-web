@@ -100,12 +100,13 @@ export function AlumnosReportTable({
             </div>
 
             <div className="bg-white border border-border rounded-card overflow-x-auto">
-                <div className="min-w-[640px]">
-                <div className="grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
+                <div className="min-w-[720px]">
+                <div className="grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
                     <div>Nro</div>
                     <div>Alumno</div>
                     <div>Grupo</div>
-                    <div className="text-center">Tardanzas</div>
+                    <div className="text-center">Asistencias</div>
+                    <div className="text-center">Retardos</div>
                     <div className="text-center">Faltas</div>
                     <div className="text-center">Horas de falta</div>
                     <div className="text-right">Faltas restantes</div>
@@ -122,7 +123,7 @@ export function AlumnosReportTable({
                         <div key={f.alumno_id} className={i > 0 ? 'border-t border-border' : ''}>
                             <button
                                 onClick={() => setExpandido(abierto ? null : f.alumno_id)}
-                                className="w-full grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-3 text-sm text-left hover:bg-black/[0.02] items-center"
+                                className="w-full grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-3 text-sm text-left hover:bg-black/[0.02] items-center"
                             >
                                 <span className="text-inkSoft">{i + 1}</span>
                                 <span className="font-semibold flex items-center gap-1.5">
@@ -130,6 +131,7 @@ export function AlumnosReportTable({
                                     {f.apellidos && f.nombres ? `${f.apellidos}, ${f.nombres}` : f.nombre}
                                 </span>
                                 <span className="text-inkSoft truncate">{f.grupo_nombre}</span>
+                                <span className="text-center text-green font-semibold">{f.dias_asistio}</span>
                                 <span className="text-center text-amber font-semibold">{f.dias_tardanza}</span>
                                 <span className="text-center text-red font-semibold">{f.dias_falto}</span>
                                 <span className="text-center">{f.horas_falta_acumuladas}</span>
