@@ -25,6 +25,7 @@ interface RegistroInicial {
 
 interface Riesgo {
   porcentajeFalta: number;
+  totalFaltas: number;
   enRiesgo: boolean;
 }
 
@@ -451,7 +452,7 @@ export function AsistenciaClient({
                 <span className="text-sm flex items-center gap-1.5">
                   {f.alumno.nombre}
                   {riesgo?.enRiesgo && (
-                    <span title={`${riesgo.porcentajeFalta}% de falta acumulada`} className="text-red text-xs">⚠️</span>
+                    <span title={`${riesgo.totalFaltas} falta${riesgo.totalFaltas === 1 ? '' : 's'} acumulada${riesgo.totalFaltas === 1 ? '' : 's'}`} className="text-red text-xs">⚠️</span>
                   )}
                 </span>
                 <StatusPillGroup value={f.estatus} onChange={(v) => cambiarEstatus(f.alumno.id, v)} />
