@@ -301,6 +301,13 @@ export function AsistenciaClient({
   // Faltas que activan la alerta: tope permitido * umbral (redondeo hacia arriba).
   const faltasParaAlerta =
     faltasPermitidasSemestre > 0 ? Math.ceil(faltasPermitidasSemestre * (umbral / 100)) : 0;
+  // Zona amarilla (atención preventiva): a partir del 75% del umbral y aún no en riesgo.
+  const umbralAtencion = umbral * 0.75;
+  const enAtencion = (alumnoId: string) => {
+    const r = riesgoPorAlumno[alumnoId];
+    return !!r && !r.enRiesgo && r.porcentajeFalta >= umbralAtencion;
+  };
+  const enAtencionCount = Object.keys(riesgoPorAlumno).filter(enAtencion).length;
 
   const resumen = {
     total: filas.length,
@@ -381,6 +388,30 @@ export function AsistenciaClient({
                   return (
                     <div key={f.alumno.id} className="text-[12.5px] text-red">
                       🔴 {nombre} — <b>{r.totalFaltas}/{faltasPermitidasSemestre}</b> faltas ({r.porcentajeFalta}%)
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {enAtencionCount > 0 && (
+          <div className="mt-3 mb-1 bg-amber/10 border border-amber/30 rounded-card px-3.5 py-2.5">
+            <div className="text-sm text-amber font-semibold mb-1.5">
+              🟡 {enAtencionCount} estudiante{enAtencionCount === 1 ? '' : 's'} en zona de atención (acercándose al umbral del {umbral}%).
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {filas
+                .filter((f) => enAtencion(f.alumno.id))
+                .map((f) => {
+                  const r = riesgoPorAlumno[f.alumno.id];
+                  const nombre =
+                    f.alumno.apellidos && f.alumno.nombres
+                      ? `${f.alumno.apellidos}, ${f.alumno.nombres}`
+                      : f.alumno.nombre;
+                  return (
+                    <div key={f.alumno.id} className="text-[12.5px] text-amber">
+                      🟡 {nombre} — <b>{r.totalFaltas}/{faltasPermitidasSemestre}</b> faltas ({r.porcentajeFalta}%)
                     </div>
                   );
                 })}
