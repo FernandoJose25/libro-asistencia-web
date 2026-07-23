@@ -26,10 +26,10 @@ export default async function DashboardPage() {
 
   const { data: enRiesgo } = await supabase
     .from('riesgo_por_alumno_v2')
-    .select('nombre, grupo_id, grupo_nombre, porcentaje_falta')
+    .select('nombre, grupo_id, grupo_nombre, porcentaje_falta, horas_falta_total')
     .eq('profesor_id', session.user.id)
     .eq('en_riesgo', true)
-    .order('porcentaje_falta', { ascending: false });
+    .order('horas_falta_total', { ascending: false });
 
   const totalHorasFalta = (horasFalta || []).reduce((acc, r: any) => acc + (r.horas_falta_total || 0), 0);
   const inicial = (session.user.email || 'P')[0].toUpperCase();
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
                     href={`/dashboard/asistencia/${r.grupo_id}`}
                     className="text-[12.5px] text-ink hover:underline"
                   >
-                    {r.nombre} — {r.grupo_nombre} ({r.porcentaje_falta}% de falta)
+                    {r.nombre} — {r.grupo_nombre} ({r.horas_falta_total} falta{r.horas_falta_total === 1 ? '' : 's'})
                   </Link>
                 ))}
                 {enRiesgo!.length > 6 && (
