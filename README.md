@@ -34,7 +34,7 @@ Desarrollo completo hecho por mí (48 commits): relevamiento con profesores, mod
 |---|---|
 | Frontend | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS |
 | Backend | Route Handlers de Next.js (17 endpoints: Drive, grupos, sincronización) |
-| Base de datos | Supabase: PostgreSQL, Row Level Security, vistas SQL, 9 migraciones |
+| Base de datos | Supabase: PostgreSQL, Row Level Security, vistas SQL, 10 migraciones |
 | Integraciones | Google Drive API (`googleapis`) con OAuth 2.0 propio y refresh tokens · Groq (IA) · SheetJS (`xlsx`) |
 | Despliegue | Vercel |
 
@@ -48,7 +48,7 @@ app/api/drive/                 browse, search, upload, rename, move, copy, delet
 app/api/asistencia/sync        Sincroniza Supabase ↔ archivo de Drive
 lib/googleAuth.ts              URL de consentimiento y renovación del access_token
 lib/drive.ts                   Operaciones sobre Drive
-supabase/                      schema.sql + migraciones 001–009
+supabase/                      schema.sql + migraciones 001–010
 ```
 
 ## Correr el proyecto
