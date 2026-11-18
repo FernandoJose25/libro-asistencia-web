@@ -6,6 +6,7 @@ import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno } from '@/lib/types';
 import { leerAlumnosDeArchivoLocal } from '@/lib/importarAlumnosExcel';
 import { NuevoGrupoModal } from './NuevoGrupoModal';
+import { Icono } from './Icono';
 
 interface GrupoConAlumnos {
   id: string;
@@ -30,7 +31,9 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
   const [nuevoApellidos, setNuevoApellidos] = useState('');
   const [nuevoNombres, setNuevoNombres] = useState('');
   const [editandoId, setEditandoId] = useState<string | null>(null);
-  const [nombreEdit, setNombreEdit] = useState('');
+  const [edicion, setEdicion] = useState({ apellidos: '', nombres: '' });
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+  const [errorEdicion, setErrorEdicion] = useState('');
   const [configEdit, setConfigEdit] = useState<Record<string, ConfigEdit>>({});
   const [guardandoConfig, setGuardandoConfig] = useState<string | null>(null);
   const [importando, setImportando] = useState<string | null>(null);
@@ -85,14 +88,35 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
 
   function empezarEdicion(alumno: Alumno) {
     setEditandoId(alumno.id);
-    setNombreEdit(alumno.nombre);
+    setErrorEdicion('');
+    // Alumnos antiguos solo tienen "nombre" (sin separar): va completo a Apellidos.
+    setEdicion(
+      alumno.apellidos || alumno.nombres
+        ? { apellidos: alumno.apellidos || '', nombres: alumno.nombres || '' }
+        : { apellidos: alumno.nombre, nombres: '' }
+    );
   }
 
   async function guardarNombre(alumnoId: string) {
-    const nombre = nombreEdit.trim();
+    const apellidos = edicion.apellidos.trim();
+    const nombres = edicion.nombres.trim();
+    if (!apellidos && !nombres) return;
+    setGuardandoNombre(true);
+    setErrorEdicion('');
+    // Se guardan apellidos y nombres: el trigger trg_sincronizar_nombre_alumno
+    // (migración 007) recalcula "nombre" a partir de ellos, así que antes, al
+    // cambiar solo "nombre", la base lo devolvía al valor viejo sin avisar.
+    const { data, error } = await supabase
+      .from('alumnos')
+      .update({ nombre: [apellidos, nombres].filter(Boolean).join(' '), apellidos: apellidos || null, nombres: nombres || null })
+      .eq('id', alumnoId)
+      .select('id');
+    setGuardandoNombre(false);
+    if (error || !data?.length) {
+      setErrorEdicion(error ? `No se pudo guardar: ${error.message}` : 'No se pudo guardar el cambio. Recarga la página e inténtalo de nuevo.');
+      return;
+    }
     setEditandoId(null);
-    if (!nombre) return;
-    await supabase.from('alumnos').update({ nombre }).eq('id', alumnoId);
     router.refresh();
   }
 
@@ -228,24 +252,68 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                       </div>
 
                       {editandoId === a.id ? (
-                        <input
-                          autoFocus
-                          value={nombreEdit}
-                          onChange={(e) => setNombreEdit(e.target.value)}
-                          onBlur={() => guardarNombre(a.id)}
-                          onKeyDown={(e) => e.key === 'Enter' && guardarNombre(a.id)}
-                          className="text-sm border border-gold rounded px-2 py-1 w-full max-w-[260px]"
-                        />
+                        <div
+                          className="col-span-2 flex flex-wrap items-center gap-2 py-1"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') guardarNombre(a.id);
+                            if (e.key === 'Escape') setEditandoId(null);
+                          }}
+                        >
+                          <input
+                            autoFocus
+                            aria-label="Apellidos"
+                            placeholder="Apellidos"
+                            value={edicion.apellidos}
+                            onChange={(e) => setEdicion((v) => ({ ...v, apellidos: e.target.value }))}
+                            className="flex-1 min-w-[130px] text-[16px] sm:text-sm border border-gold rounded-md px-2.5 py-2"
+                          />
+                          <input
+                            aria-label="Nombres"
+                            placeholder="Nombres"
+                            value={edicion.nombres}
+                            onChange={(e) => setEdicion((v) => ({ ...v, nombres: e.target.value }))}
+                            className="flex-1 min-w-[130px] text-[16px] sm:text-sm border border-gold rounded-md px-2.5 py-2"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => guardarNombre(a.id)}
+                              disabled={guardandoNombre}
+                              className="px-3.5 py-2 rounded-md bg-navy text-white text-sm font-semibold disabled:opacity-60"
+                            >
+                              {guardandoNombre ? 'Guardando…' : 'Guardar'}
+                            </button>
+                            <button onClick={() => setEditandoId(null)} className="px-3 py-2 rounded-md border border-border text-sm">
+                              Cancelar
+                            </button>
+                          </div>
+                          {errorEdicion && <p className="w-full text-xs text-red">{errorEdicion}</p>}
+                        </div>
                       ) : (
-                        <span className="text-sm cursor-text hover:underline" onClick={() => empezarEdicion(a)}>
-                          {a.apellidos && a.nombres ? `${a.apellidos}, ${a.nombres}` : a.nombre}
-                        </span>
-                      )}
+                        <>
+                          <span className="text-sm cursor-text hover:underline" onClick={() => empezarEdicion(a)}>
+                            {a.apellidos && a.nombres ? `${a.apellidos}, ${a.nombres}` : a.nombre}
+                          </span>
 
-                      <div className="flex gap-2 justify-end">
-                        <button onClick={() => empezarEdicion(a)} title="Renombrar" className="text-inkSoft hover:text-ink">✎</button>
-                        <button onClick={() => eliminarAlumno(a.id)} title="Eliminar" className="text-red">🗑</button>
-                      </div>
+                          <div className="flex gap-1 justify-end">
+                            <button
+                              onClick={() => empezarEdicion(a)}
+                              title="Editar nombre"
+                              aria-label="Editar nombre"
+                              className="w-9 h-9 flex items-center justify-center rounded-md text-inkSoft hover:text-ink hover:bg-bg"
+                            >
+                              <Icono nombre="lapiz" />
+                            </button>
+                            <button
+                              onClick={() => eliminarAlumno(a.id)}
+                              title="Eliminar"
+                              aria-label="Eliminar alumno"
+                              className="w-9 h-9 flex items-center justify-center rounded-md text-red hover:bg-red/10"
+                            >
+                              <Icono nombre="basura" />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   ))}
 
