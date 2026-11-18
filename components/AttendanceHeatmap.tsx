@@ -3,11 +3,21 @@ interface DiaSesion {
     tasaAsistencia: number; // 0 a 1
 }
 
+// Escala de la paleta (de baja a excelente asistencia).
+const NIVELES = [
+    { desde: 0.9, color: '#1b5e3a', label: 'Excelente' },
+    { desde: 0.75, color: '#4f9a6c', label: 'Buena' },
+    { desde: 0.5, color: '#d29a3a', label: 'Media' },
+    { desde: 0, color: '#b23346', label: 'Baja' }
+];
+
 function colorPara(tasa: number) {
-    if (tasa >= 0.9) return '#1e7e34';
-    if (tasa >= 0.75) return '#5cb85c';
-    if (tasa >= 0.5) return '#f0ad4e';
-    return '#d9534f';
+    return (NIVELES.find((n) => tasa >= n.desde) || NIVELES[NIVELES.length - 1]).color;
+}
+
+function fechaCorta(iso: string) {
+    const [anio, mes, dia] = iso.split('-');
+    return `${dia}/${mes}/${anio}`;
 }
 
 // Puramente de servidor (sin hooks) — se calcula todo en la página que lo
@@ -24,24 +34,28 @@ export function AttendanceHeatmap({ dias }: { dias: DiaSesion[] }) {
 
     return (
         <div className="bg-white border border-border rounded-card p-4">
-            <div className="text-[11px] uppercase tracking-wide text-inkSoft mb-3">
-                Calendario de asistencia (últimas {dias.length} clases)
+            <div className="flex items-baseline justify-between gap-2 mb-3">
+                <h3 className="font-display text-lg font-semibold">Historial de asistencia</h3>
+                <span className="text-[12px] text-inkSoft">{dias.length} clases</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-                {dias.map((d) => (
+                {/* Una fecha puede tener Hora 1 y Hora 2: el índice evita keys repetidas. */}
+                {dias.map((d, i) => (
                     <div
-                        key={d.fecha}
-                        title={`${d.fecha}: ${Math.round(d.tasaAsistencia * 100)}% de asistencia`}
-                        className="w-5 h-5 rounded-[4px]"
+                        key={`${d.fecha}-${i}`}
+                        title={`${fechaCorta(d.fecha)}: ${Math.round(d.tasaAsistencia * 100)}% de asistencia`}
+                        className="w-5 h-5 rounded-[5px]"
                         style={{ backgroundColor: colorPara(d.tasaAsistencia) }}
                     />
                 ))}
             </div>
-            <div className="flex items-center gap-3 mt-3 text-[10.5px] text-inkSoft">
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#d9534f' }} />Baja</span>
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#f0ad4e' }} />Media</span>
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#5cb85c' }} />Buena</span>
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: '#1e7e34' }} />Excelente</span>
+            <div className="flex items-center gap-3 mt-3 text-[11.5px] text-inkSoft flex-wrap">
+                {[...NIVELES].reverse().map((n) => (
+                    <span key={n.label} className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: n.color }} />
+                        {n.label}
+                    </span>
+                ))}
             </div>
         </div>
     );

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { contextoSesion } from '@/lib/driveContext';
+import { fechaLocalISO, ZONA_HORARIA } from '@/lib/utils';
 
 // Genera un resumen en lenguaje natural de la asistencia de un grupo, con los
 // datos que existen HASTA EL MOMENTO en que se genera — nunca proyecta ni
@@ -38,7 +39,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         );
     }
 
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = fechaLocalISO(new Date(), ZONA_HORARIA);
     const sesionesUnicas = new Set((sesiones || []).map((s) => `${s.fecha}-${s.clase}`));
     const totalSesiones = sesionesUnicas.size;
     const enRiesgo = (riesgo || []).filter((r) => r.en_riesgo);

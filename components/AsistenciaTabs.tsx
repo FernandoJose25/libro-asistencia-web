@@ -22,7 +22,7 @@ export function AsistenciaTabs({ grupos }: { grupos: Grupo[] }) {
   }
 
   return (
-    <div className="flex items-center gap-1 px-6 pt-2.5 border-b border-border bg-white overflow-x-auto">
+    <div className="flex items-end gap-1 px-3 md:px-6 pt-2.5 border-b border-border bg-white overflow-x-auto">
       {grupos.map((g) => {
         const href = `/dashboard/asistencia/${g.id}`;
         const activo = pathname === href;
@@ -30,8 +30,8 @@ export function AsistenciaTabs({ grupos }: { grupos: Grupo[] }) {
           <Link
             key={g.id}
             href={href}
-            className={`px-4 py-2 text-sm rounded-t-md border border-b-0 whitespace-nowrap ${activo
-              ? 'bg-bg border-border font-semibold text-ink'
+            className={`relative -mb-px px-4 py-2.5 text-[15px] rounded-t-lg border border-b-0 whitespace-nowrap ${activo
+              ? 'bg-bg border-border font-bold text-ink before:absolute before:inset-x-3 before:top-0 before:h-[3px] before:rounded-b before:bg-gold'
               : 'border-transparent text-inkSoft hover:text-ink'
               }`}
           >

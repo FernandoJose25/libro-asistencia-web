@@ -44,15 +44,16 @@ export function JustificarPopover({
     <div className="relative">
       <button
         onClick={abrir}
-        className={`text-xs px-2.5 py-1.5 rounded-full border whitespace-nowrap ${
-          justificada ? 'border-green text-green bg-green/10' : 'border-border text-inkSoft'
+        aria-expanded={abierto}
+        className={`min-h-[44px] md:min-h-[34px] text-[13px] font-bold px-3 rounded-[10px] border whitespace-nowrap ${
+          justificada ? 'border-green/45 text-green bg-green/10' : 'border-border text-inkSoft bg-white hover:text-ink'
         }`}
       >
         {justificada ? '✓ Justificada' : 'Justificar'}
       </button>
 
       {abierto && (
-        <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-md shadow-lg p-3 w-[min(16rem,85vw)]">
+        <div className="absolute right-0 top-full mt-1.5 z-20 bg-white border border-border rounded-card shadow-xl shadow-navy/10 p-3 w-[min(17rem,85vw)]">
           <div className="text-[11px] text-inkSoft mb-1.5">Motivo</div>
           <div className="flex gap-1.5 mb-2">
             {MOTIVOS.map((m) => (

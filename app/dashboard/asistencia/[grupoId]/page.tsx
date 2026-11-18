@@ -3,6 +3,7 @@ import { supabaseServer } from '@/lib/supabaseServer';
 import { Topbar } from '@/components/Topbar';
 import { AsistenciaTabs } from '@/components/AsistenciaTabs';
 import { AsistenciaClient } from '@/components/AsistenciaClient';
+import { fechaLocalISO, ZONA_HORARIA } from '@/lib/utils';
 
 export default async function AsistenciaGrupoPage({ params }: { params: { grupoId: string } }) {
   const supabase = supabaseServer();
@@ -25,7 +26,8 @@ export default async function AsistenciaGrupoPage({ params }: { params: { grupoI
     .eq('grupo_id', grupo.id)
     .order('orden');
 
-  const hoy = new Date().toISOString().slice(0, 10);
+  // El cliente la corrige con la zona del dispositivo al montar.
+  const hoy = fechaLocalISO(new Date(), ZONA_HORARIA);
   const { data: registros } = await supabase
     .from('asistencia_registros')
     .select('alumno_id, estatus, marcado_en, justificada, justificacion_motivo, justificacion_detalle')
@@ -85,6 +87,8 @@ export default async function AsistenciaGrupoPage({ params }: { params: { grupoI
         grupoId={grupo.id}
         grupoNombre={grupo.nombre}
         alumnosIniciales={alumnos || []}
+        fechaInicial={hoy}
+        sesionesGuardadas={fechasClase}
         registrosIniciales={registrosIniciales}
         umbralInicial={grupo.umbral_falta_porcentaje}
         horasClaseSemanaInicial={grupo.horas_clase_semana}
