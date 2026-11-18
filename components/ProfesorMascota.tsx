@@ -22,8 +22,8 @@ interface Pose {
   libro: Punto & { giro: number };
 }
 
-const ANCHO = 320;
-const ALTO = 400;
+// Encuadre ajustado al personaje (el dibujo usa coordenadas de 320×400).
+const VB = { x: 62, y: 22, w: 196, h: 382 };
 const HOMBRO_I = { x: 118, y: 162 };
 const HOMBRO_D = { x: 202, y: 162 };
 const LARGO_BRAZO = 86;
@@ -122,8 +122,8 @@ export function ProfesorMascota({
     const svg = svgRef.current;
     if (!svg) return;
     const r = svg.getBoundingClientRect();
-    const vx = ((clientX - r.left) / r.width) * ANCHO;
-    const vy = ((clientY - r.top) / r.height) * ALTO;
+    const vx = VB.x + ((clientX - r.left) / r.width) * VB.w;
+    const vy = VB.y + ((clientY - r.top) / r.height) * VB.h;
     ([['I', pupilaI.current], ['D', pupilaD.current]] as const).forEach(([lado, el]) => {
       if (!el) return;
       const c = OJOS[lado];
@@ -240,7 +240,7 @@ export function ProfesorMascota({
   return (
     <svg
       ref={svgRef}
-      viewBox={`0 0 ${ANCHO} ${ALTO}`}
+      viewBox={`${VB.x} ${VB.y} ${VB.w} ${VB.h}`}
       className={`prof-svg ${className}`}
       role="img"
       aria-label="Profesor animado que acompaña el inicio de sesión"
@@ -287,7 +287,7 @@ export function ProfesorMascota({
             <path d="M124 92 Q113 94 115 105 Q117 113 126 111 Z" fill="#f1c9a0" stroke="#1c2230" strokeWidth="2" />
             <path d="M196 92 Q207 94 205 105 Q203 113 194 111 Z" fill="#f1c9a0" stroke="#1c2230" strokeWidth="2" />
             <path
-              d="M126 66 L194 66 L198 102 L192 122 L174 137 L146 137 L128 122 L122 102 Z"
+              d="M126 56 L194 56 L198 102 L192 122 L174 137 L146 137 L128 122 L122 102 Z"
               fill="#f1c9a0"
               stroke="#1c2230"
               strokeWidth="2.5"
