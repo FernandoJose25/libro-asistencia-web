@@ -6,7 +6,6 @@ import { supabaseBrowser } from '@/lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = supabaseBrowser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [cargando, setCargando] = useState(false);
@@ -16,7 +15,9 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setCargando(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    // El cliente se crea al enviar (no al renderizar) para que el prerender del build
+    // no dependa de las variables de entorno de Supabase.
+    const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
     setCargando(false);
     if (error) {
       setError('Correo o contraseña incorrectos.');
