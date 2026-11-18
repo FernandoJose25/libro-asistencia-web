@@ -32,6 +32,10 @@ function formatearFecha(iso: string) {
     return fecha.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function nombreMostrado(f: FilaReporteAlumno) {
+    return f.apellidos && f.nombres ? `${f.apellidos}, ${f.nombres}` : f.nombre;
+}
+
 function claseRiesgo(horasRestantes: number) {
     if (horasRestantes <= 0) return 'text-red font-bold';
     if (horasRestantes <= 3) return 'text-amber font-semibold';
@@ -56,10 +60,10 @@ export function AlumnosReportTable({
             .filter((f) => grupoFiltro === 'todos' || f.grupo_id === grupoFiltro)
             .filter((f) => f.nombre.toLowerCase().includes(busqueda.toLowerCase()))
             // Con un grupo elegido se respeta el orden de la lista (el mismo de
-            // Asistencia); con "todos" se priorizan los que tienen menos faltas restantes.
+            // Asistencia); con "todos" se ordena alfabéticamente por el nombre mostrado.
             .sort((a, b) =>
                 grupoFiltro === 'todos'
-                    ? a.horas_falta_restantes - b.horas_falta_restantes
+                    ? nombreMostrado(a).localeCompare(nombreMostrado(b), 'es', { sensitivity: 'base' })
                     : (a.orden ?? 0) - (b.orden ?? 0)
             );
     }, [filas, grupoFiltro, busqueda]);
@@ -135,7 +139,7 @@ export function AlumnosReportTable({
                                 <span className="text-inkSoft">{i + 1}</span>
                                 <span className="font-semibold flex items-center gap-1.5">
                                     <span className={`text-[10px] transition-transform ${abierto ? 'rotate-90' : ''}`}>▶</span>
-                                    {f.apellidos && f.nombres ? `${f.apellidos}, ${f.nombres}` : f.nombre}
+                                    {nombreMostrado(f)}
                                 </span>
                                 <span className="text-inkSoft truncate">{f.grupo_nombre}</span>
                                 <span className="text-center text-green font-semibold">{f.dias_asistio}</span>
