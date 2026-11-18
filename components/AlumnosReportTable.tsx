@@ -9,6 +9,7 @@ export interface FilaReporteAlumno {
     nombre: string;
     apellidos?: string | null;
     nombres?: string | null;
+    orden?: number;
     grupo_id: string;
     grupo_nombre: string;
     horas_clase_semana: number;
@@ -54,7 +55,13 @@ export function AlumnosReportTable({
         return filas
             .filter((f) => grupoFiltro === 'todos' || f.grupo_id === grupoFiltro)
             .filter((f) => f.nombre.toLowerCase().includes(busqueda.toLowerCase()))
-            .sort((a, b) => a.horas_falta_restantes - b.horas_falta_restantes);
+            // Con un grupo elegido se respeta el orden de la lista (el mismo de
+            // Asistencia); con "todos" se priorizan los que tienen menos faltas restantes.
+            .sort((a, b) =>
+                grupoFiltro === 'todos'
+                    ? a.horas_falta_restantes - b.horas_falta_restantes
+                    : (a.orden ?? 0) - (b.orden ?? 0)
+            );
     }, [filas, grupoFiltro, busqueda]);
 
     function exportarReporte(f: FilaReporteAlumno) {

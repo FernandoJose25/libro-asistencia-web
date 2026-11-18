@@ -25,16 +25,17 @@ export default async function AlumnosPage() {
 
     // apellidos/nombres no están en la vista (agregados después); se cruzan
     // aparte para no tener que tocar reporte_asistencia_alumno_v2.
-    const { data: alumnosDetalle } = await supabase.from('alumnos').select('id, apellidos, nombres');
-    const detalleNombre: Record<string, { apellidos: string | null; nombres: string | null }> = {};
+    const { data: alumnosDetalle } = await supabase.from('alumnos').select('id, apellidos, nombres, orden');
+    const detalleNombre: Record<string, { apellidos: string | null; nombres: string | null; orden: number }> = {};
     (alumnosDetalle || []).forEach((a: any) => {
-        detalleNombre[a.id] = { apellidos: a.apellidos, nombres: a.nombres };
+        detalleNombre[a.id] = { apellidos: a.apellidos, nombres: a.nombres, orden: a.orden ?? 0 };
     });
 
     const filas = (reporte || []).map((f: any) => ({
         ...f,
         apellidos: detalleNombre[f.alumno_id]?.apellidos ?? null,
-        nombres: detalleNombre[f.alumno_id]?.nombres ?? null
+        nombres: detalleNombre[f.alumno_id]?.nombres ?? null,
+        orden: detalleNombre[f.alumno_id]?.orden ?? 0
     })) as FilaReporteAlumno[];
 
     // Fechas exactas de cada falta/tardanza, para poder mostrarlas como
