@@ -3,6 +3,7 @@
 export interface ReporteAlumnoPDF {
   nombre: string;
   grupoNombre: string;
+  periodo?: string; // "del … al …"; sin periodo = todo el curso
   diasAsistio: number;
   diasTardanza: number;
   diasFalto: number;
@@ -30,7 +31,7 @@ export function exportarReporteAlumnoPDF(r: ReporteAlumnoPDF) {
     <html><head><title>Reporte de asistencia — ${r.nombre}</title></head>
     <body style="font-family:sans-serif;padding:24px;">
       <h2>Reporte de asistencia</h2>
-      <p><b>Alumno:</b> ${r.nombre}<br/><b>Grupo:</b> ${r.grupoNombre}</p>
+      <p><b>Alumno:</b> ${r.nombre}<br/><b>Grupo:</b> ${r.grupoNombre}${r.periodo ? `<br/><b>Periodo:</b> ${r.periodo}` : ''}</p>
 
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
         <tbody>

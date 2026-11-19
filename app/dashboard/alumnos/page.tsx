@@ -39,15 +39,24 @@ export default async function AlumnosPage() {
     })) as FilaReporteAlumno[];
 
     // Fechas exactas de cada falta/tardanza, para poder mostrarlas como
-    // evidencia si el alumno pregunta o reclama qué día faltó.
-    const { data: registros } = await supabase
-        .from('asistencia_registros')
-        .select('alumno_id, fecha, estatus')
-        .in('estatus', ['falto', 'tardanza'])
-        .order('fecha', { ascending: false });
+    // evidencia si el alumno pregunta o reclama qué día faltó. Supabase
+    // devuelve como máximo 1000 filas por consulta, así que se piden por
+    // páginas: el filtro de periodo necesita también las fechas más viejas.
+    const registros: { alumno_id: string; fecha: string; estatus: string }[] = [];
+    for (let inicio = 0; ; inicio += 1000) {
+        const { data } = await supabase
+            .from('asistencia_registros')
+            .select('alumno_id, fecha, estatus')
+            .in('estatus', ['falto', 'tardanza'])
+            .order('fecha', { ascending: false })
+            .order('id')
+            .range(inicio, inicio + 999);
+        registros.push(...(data || []));
+        if (!data || data.length < 1000) break;
+    }
 
     const detalles: Record<string, DetalleFechas> = {};
-    (registros || []).forEach((r: any) => {
+    registros.forEach((r) => {
         if (!detalles[r.alumno_id]) detalles[r.alumno_id] = { faltas: [], tardanzas: [] };
         if (r.estatus === 'falto') detalles[r.alumno_id].faltas.push(r.fecha);
         else detalles[r.alumno_id].tardanzas.push(r.fecha);

@@ -1,8 +1,9 @@
 // RUTA: components/AlumnosReportTable.tsx
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { exportarReporteAlumnoPDF } from '@/lib/exportReporteAlumno';
+import { supabaseBrowser } from '@/lib/supabaseClient';
 
 export interface FilaReporteAlumno {
     alumno_id: string;
@@ -24,6 +25,20 @@ export interface FilaReporteAlumno {
 export interface DetalleFechas {
     faltas: string[]; // YYYY-MM-DD, más reciente primero
     tardanzas: string[];
+}
+
+interface ConteoPeriodo {
+    dias_asistio: number;
+    dias_tardanza: number;
+    dias_falto: number;
+}
+
+// Periodo ya cargado: las fechas van junto a sus conteos para que la tabla y
+// el detalle de fechas nunca muestren un periodo distinto mientras carga otro.
+interface Periodo {
+    desde: string;
+    hasta: string;
+    conteos: Record<string, ConteoPeriodo>;
 }
 
 function formatearFecha(iso: string) {
@@ -54,6 +69,66 @@ export function AlumnosReportTable({
     const [grupoFiltro, setGrupoFiltro] = useState<string>('todos');
     const [busqueda, setBusqueda] = useState('');
     const [expandido, setExpandido] = useState<string | null>(null);
+    const [desde, setDesde] = useState('');
+    const [hasta, setHasta] = useState('');
+    // null = todo el curso (los valores que ya trae la vista).
+    const [periodo, setPeriodo] = useState<Periodo | null>(null);
+    const [cargandoPeriodo, setCargandoPeriodo] = useState(false);
+    const [errorPeriodo, setErrorPeriodo] = useState(false);
+
+    const fechasInvertidas = !!desde && !!hasta && desde > hasta;
+
+    useEffect(() => {
+        setErrorPeriodo(false);
+        if (!desde || !hasta || desde > hasta) {
+            setPeriodo(null);
+            setCargandoPeriodo(false);
+            return;
+        }
+        let cancelado = false;
+        setCargandoPeriodo(true);
+        supabaseBrowser()
+            .rpc('reporte_asistencia_rango', { p_desde: desde, p_hasta: hasta })
+            .then(({ data, error }) => {
+                if (cancelado) return;
+                setCargandoPeriodo(false);
+                if (error) {
+                    setPeriodo(null);
+                    setErrorPeriodo(true);
+                    return;
+                }
+                const conteos: Record<string, ConteoPeriodo> = {};
+                (data || []).forEach((c: any) => {
+                    conteos[c.alumno_id] = {
+                        dias_asistio: Number(c.dias_asistio),
+                        dias_tardanza: Number(c.dias_tardanza),
+                        dias_falto: Number(c.dias_falto)
+                    };
+                });
+                setPeriodo({ desde, hasta, conteos });
+            });
+        return () => {
+            cancelado = true;
+        };
+    }, [desde, hasta]);
+
+    // Asistencias/retardos/faltas del periodo elegido o de todo el curso. Las
+    // horas de falta son las faltas no justificadas, igual que en la vista.
+    function conteoDe(f: FilaReporteAlumno) {
+        if (!periodo) {
+            return { asistio: f.dias_asistio, tardanza: f.dias_tardanza, falto: f.dias_falto, horasFalta: f.horas_falta_acumuladas };
+        }
+        const c = periodo.conteos[f.alumno_id];
+        const falto = c?.dias_falto ?? 0;
+        return { asistio: c?.dias_asistio ?? 0, tardanza: c?.dias_tardanza ?? 0, falto, horasFalta: falto };
+    }
+
+    function detalleDe(f: FilaReporteAlumno): DetalleFechas {
+        const detalle = detalles[f.alumno_id] || { faltas: [], tardanzas: [] };
+        if (!periodo) return detalle;
+        const dentro = (d: string) => d >= periodo.desde && d <= periodo.hasta;
+        return { faltas: detalle.faltas.filter(dentro), tardanzas: detalle.tardanzas.filter(dentro) };
+    }
 
     const filtradas = useMemo(() => {
         return filas
@@ -69,14 +144,16 @@ export function AlumnosReportTable({
     }, [filas, grupoFiltro, busqueda]);
 
     function exportarReporte(f: FilaReporteAlumno) {
-        const detalle = detalles[f.alumno_id] || { faltas: [], tardanzas: [] };
+        const detalle = detalleDe(f);
+        const conteo = conteoDe(f);
         exportarReporteAlumnoPDF({
             nombre: f.nombre,
             grupoNombre: f.grupo_nombre,
-            diasAsistio: f.dias_asistio,
-            diasTardanza: f.dias_tardanza,
-            diasFalto: f.dias_falto,
-            horasFaltaAcumuladas: f.horas_falta_acumuladas,
+            periodo: periodo ? `del ${formatearFecha(periodo.desde)} al ${formatearFecha(periodo.hasta)}` : undefined,
+            diasAsistio: conteo.asistio,
+            diasTardanza: conteo.tardanza,
+            diasFalto: conteo.falto,
+            horasFaltaAcumuladas: conteo.horasFalta,
             horasFaltaRestantes: f.horas_falta_restantes,
             faltasPermitidasSemestre: f.faltas_permitidas_semestre,
             faltas: detalle.faltas.map(formatearFecha),
@@ -110,6 +187,58 @@ export function AlumnosReportTable({
                 </span>
             </div>
 
+            <div className="bg-white border border-border rounded-card p-3 mb-4">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:items-end sm:gap-3">
+                    <label className="flex flex-col gap-1 text-[12px] font-semibold text-inkSoft min-w-0">
+                        Desde
+                        <input
+                            type="date"
+                            value={desde}
+                            max={hasta || undefined}
+                            onChange={(e) => setDesde(e.target.value)}
+                            className="w-full min-w-0 px-3 py-2 border border-border rounded-md text-sm font-normal text-ink bg-white"
+                        />
+                    </label>
+                    <label className="flex flex-col gap-1 text-[12px] font-semibold text-inkSoft min-w-0">
+                        Hasta
+                        <input
+                            type="date"
+                            value={hasta}
+                            min={desde || undefined}
+                            onChange={(e) => setHasta(e.target.value)}
+                            className="w-full min-w-0 px-3 py-2 border border-border rounded-md text-sm font-normal text-ink bg-white"
+                        />
+                    </label>
+                    {(desde || hasta) && (
+                        <button
+                            onClick={() => {
+                                setDesde('');
+                                setHasta('');
+                            }}
+                            className="col-span-2 sm:col-auto px-3 py-2 rounded-md border border-border text-sm font-semibold bg-white"
+                        >
+                            Ver todo el curso
+                        </button>
+                    )}
+                </div>
+                <p
+                    className={`text-[12.5px] mt-2 ${errorPeriodo || fechasInvertidas ? 'text-red font-semibold' : 'text-inkSoft'}`}
+                    aria-live="polite"
+                >
+                    {errorPeriodo
+                        ? 'No se pudo cargar ese periodo. Revisa tu conexión y vuelve a elegir las fechas.'
+                        : fechasInvertidas
+                          ? 'La fecha "Desde" no puede ser posterior a "Hasta".'
+                          : cargandoPeriodo
+                            ? 'Cargando periodo…'
+                            : periodo
+                              ? `Mostrando del ${formatearFecha(periodo.desde)} al ${formatearFecha(periodo.hasta)}.`
+                              : desde || hasta
+                                ? `Elige también la fecha "${desde ? 'Hasta' : 'Desde'}". Por ahora se ve todo el curso.`
+                                : 'Mostrando todo el curso. Elige dos fechas para ver solo ese periodo.'}
+                </p>
+            </div>
+
             <div className="bg-white border border-border rounded-card overflow-x-auto">
                 <div className="min-w-[720px]">
                 <div className="grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
@@ -128,7 +257,8 @@ export function AlumnosReportTable({
                 )}
 
                 {filtradas.map((f, i) => {
-                    const detalle = detalles[f.alumno_id] || { faltas: [], tardanzas: [] };
+                    const detalle = detalleDe(f);
+                    const conteo = conteoDe(f);
                     const abierto = expandido === f.alumno_id;
                     return (
                         <div key={f.alumno_id} className={i > 0 ? 'border-t border-border' : ''}>
@@ -142,10 +272,10 @@ export function AlumnosReportTable({
                                     {nombreMostrado(f)}
                                 </span>
                                 <span className="text-inkSoft truncate">{f.grupo_nombre}</span>
-                                <span className="text-center text-green font-semibold">{f.dias_asistio}</span>
-                                <span className="text-center text-amber font-semibold">{f.dias_tardanza}</span>
-                                <span className="text-center text-red font-semibold">{f.dias_falto}</span>
-                                <span className="text-center">{f.horas_falta_acumuladas}</span>
+                                <span className="text-center text-green font-semibold">{conteo.asistio}</span>
+                                <span className="text-center text-amber font-semibold">{conteo.tardanza}</span>
+                                <span className="text-center text-red font-semibold">{conteo.falto}</span>
+                                <span className="text-center">{conteo.horasFalta}</span>
                                 <span className={`text-right ${claseRiesgo(f.horas_falta_restantes)}`}>
                                     {f.horas_falta_restantes} / {f.faltas_permitidas_semestre}
                                 </span>
@@ -196,6 +326,7 @@ export function AlumnosReportTable({
             <p className="text-[11.5px] text-inkSoft mt-3">
                 "Faltas restantes" = tope permitido según horas de clase semanales (horas × 3 por semestre) menos las horas de
                 falta acumuladas. Un día de 2 horas seguidas cuenta como 2 si el alumno falta.
+                {periodo && ' Con un periodo elegido, "Faltas restantes" sigue contando todo el curso.'}
             </p>
         </div>
     );
