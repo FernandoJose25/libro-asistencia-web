@@ -140,6 +140,8 @@ export function AsistenciaClient({
   const [menuGuardarAbierto, setMenuGuardarAbierto] = useState(false);
   const [modalCarpetaAbierto, setModalCarpetaAbierto] = useState(false);
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
+  const [copiandoHora1, setCopiandoHora1] = useState(false);
+  const [copiadoHora1, setCopiadoHora1] = useState(false);
   const cargaActual = useRef(0);
   const edicion = useRef(0); // sube con cada cambio: detecta ediciones hechas mientras se guardaba
 
@@ -181,6 +183,7 @@ export function AsistenciaClient({
     setCargado({ fecha: f, clase: c });
     setGuardadoEn(null);
     setErrorSync('');
+    setCopiadoHora1(false);
   }
 
   // Al abrir: usar la fecha local del dispositivo (el servidor solo la estima)
@@ -344,6 +347,63 @@ export function AsistenciaClient({
     );
     marcarCambio();
     setJustificandoId(null);
+  }
+
+  // Dos horas seguidas: la asistencia se pasa una sola vez y la Hora 2 repite
+  // lo de la Hora 1 (asistió, retardo, faltó y justificaciones), porque cada
+  // hora cuenta por separado en el total del parcial. Si la Hora 1 tiene algo
+  // marcado sin guardar en este teléfono, se toma eso, que es lo más reciente.
+  // Queda como cambio sin guardar para revisarlo antes de pulsar Guardar.
+  async function copiarDeHora1() {
+    const f = cargado.fecha;
+    const carga = cargaActual.current;
+    setCopiandoHora1(true);
+    setErrorSync('');
+    const { data, error } = await supabase
+      .from('asistencia_registros')
+      .select('alumno_id, estatus, justificada, justificacion_motivo, justificacion_detalle')
+      .eq('grupo_id', grupoId)
+      .eq('fecha', f)
+      .eq('clase', 1);
+    setCopiandoHora1(false);
+    if (carga !== cargaActual.current) return; // cambió de día u hora mientras tanto
+
+    if (error) {
+      setErrorSync(`No se pudo leer la Hora 1: ${error.message}`);
+      return;
+    }
+    const borrador = leerBorrador(f, 1);
+    if (!data?.length && !borrador) {
+      setErrorSync(`La Hora 1 del ${formatearFecha(f)} no tiene asistencia guardada todavía.`);
+      return;
+    }
+
+    const guardados = new Map((data || []).map((r) => [r.alumno_id, r]));
+    const sinGuardar = new Map((borrador || []).map((b) => [b.id, b]));
+    const ahora = new Date().toISOString();
+    setFilas((prev) =>
+      prev.map((fila) => {
+        const b = sinGuardar.get(fila.alumno.id);
+        if (b) {
+          return { ...fila, estatus: b.estatus, marcadoEn: ahora, justificada: b.justificada, justificacionMotivo: b.motivo, justificacionDetalle: b.detalle };
+        }
+        const r = guardados.get(fila.alumno.id);
+        if (r) {
+          return {
+            ...fila,
+            estatus: r.estatus as Estatus,
+            marcadoEn: ahora,
+            justificada: r.justificada,
+            justificacionMotivo: r.justificacion_motivo as MotivoJustificacion | null,
+            justificacionDetalle: r.justificacion_detalle || ''
+          };
+        }
+        return fila;
+      })
+    );
+    marcarCambio();
+    setJustificandoId(null);
+    setCopiadoHora1(true);
   }
 
   function descartarCambios() {
@@ -578,6 +638,23 @@ export function AsistenciaClient({
                     </button>
                   ))}
                 </div>
+                {clase === 2 && (
+                  <>
+                    <button
+                      onClick={copiarDeHora1}
+                      disabled={copiandoHora1 || cargando || cargado.clase !== 2}
+                      className="mt-2 w-full min-h-[42px] inline-flex items-center justify-center gap-2 rounded-[10px] border border-navy/20 bg-navy/[0.04] text-navy text-[14px] font-bold hover:bg-navy/[0.08] active:scale-[0.98] disabled:opacity-60"
+                    >
+                      <Icono nombre="copiar" />
+                      {copiandoHora1 ? 'Copiando…' : 'Copiar asistencia de Hora 1'}
+                    </button>
+                    <p className={`mt-1.5 px-0.5 text-[12px] leading-snug ${copiadoHora1 && dirty ? 'text-green font-bold' : 'text-inkSoft'}`} aria-live="polite">
+                      {copiadoHora1 && dirty
+                        ? 'Copiado. Revisa la lista y pulsa Guardar.'
+                        : 'Para 2 horas seguidas: repite asistencias, retardos, faltas y justificaciones.'}
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="bg-white border border-border rounded-card p-4 flex-1">
