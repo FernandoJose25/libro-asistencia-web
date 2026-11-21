@@ -42,11 +42,12 @@ export default async function AlumnosPage() {
     // evidencia si el alumno pregunta o reclama qué día faltó. Supabase
     // devuelve como máximo 1000 filas por consulta, así que se piden por
     // páginas: el filtro de periodo necesita también las fechas más viejas.
-    const registros: { alumno_id: string; fecha: string; estatus: string }[] = [];
+    // Las faltas justificadas también sirven para el total de asistencias.
+    const registros: { alumno_id: string; fecha: string; estatus: string; justificada: boolean }[] = [];
     for (let inicio = 0; ; inicio += 1000) {
         const { data } = await supabase
             .from('asistencia_registros')
-            .select('alumno_id, fecha, estatus')
+            .select('alumno_id, fecha, estatus, justificada')
             .in('estatus', ['falto', 'tardanza'])
             .order('fecha', { ascending: false })
             .order('id')
@@ -57,9 +58,11 @@ export default async function AlumnosPage() {
 
     const detalles: Record<string, DetalleFechas> = {};
     registros.forEach((r) => {
-        if (!detalles[r.alumno_id]) detalles[r.alumno_id] = { faltas: [], tardanzas: [] };
-        if (r.estatus === 'falto') detalles[r.alumno_id].faltas.push(r.fecha);
-        else detalles[r.alumno_id].tardanzas.push(r.fecha);
+        if (!detalles[r.alumno_id]) detalles[r.alumno_id] = { faltas: [], tardanzas: [], justificadas: [] };
+        if (r.estatus === 'falto') {
+            detalles[r.alumno_id].faltas.push(r.fecha);
+            if (r.justificada) detalles[r.alumno_id].justificadas.push(r.fecha);
+        } else detalles[r.alumno_id].tardanzas.push(r.fecha);
     });
 
     const grupos = Array.from(

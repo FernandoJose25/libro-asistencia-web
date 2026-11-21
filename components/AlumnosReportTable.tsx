@@ -25,6 +25,7 @@ export interface FilaReporteAlumno {
 export interface DetalleFechas {
     faltas: string[]; // YYYY-MM-DD, más reciente primero
     tardanzas: string[];
+    justificadas: string[]; // faltas justificadas (también están en "faltas")
 }
 
 interface ConteoPeriodo {
@@ -124,10 +125,14 @@ export function AlumnosReportTable({
     }
 
     function detalleDe(f: FilaReporteAlumno): DetalleFechas {
-        const detalle = detalles[f.alumno_id] || { faltas: [], tardanzas: [] };
+        const detalle = detalles[f.alumno_id] || { faltas: [], tardanzas: [], justificadas: [] };
         if (!periodo) return detalle;
         const dentro = (d: string) => d >= periodo.desde && d <= periodo.hasta;
-        return { faltas: detalle.faltas.filter(dentro), tardanzas: detalle.tardanzas.filter(dentro) };
+        return {
+            faltas: detalle.faltas.filter(dentro),
+            tardanzas: detalle.tardanzas.filter(dentro),
+            justificadas: detalle.justificadas.filter(dentro)
+        };
     }
 
     const filtradas = useMemo(() => {
@@ -240,13 +245,14 @@ export function AlumnosReportTable({
             </div>
 
             <div className="bg-white border border-border rounded-card overflow-x-auto">
-                <div className="min-w-[720px]">
-                <div className="grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
+                <div className="min-w-[800px]">
+                <div className="grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.8fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-2.5 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
                     <div>Nro</div>
                     <div>Alumno</div>
                     <div>Grupo</div>
                     <div className="text-center">Asistencias</div>
                     <div className="text-center">Retardos</div>
+                    <div className="text-center text-ink font-bold">Total asist.</div>
                     <div className="text-center">Faltas</div>
                     <div className="text-center">Horas de falta</div>
                     <div className="text-right">Faltas restantes</div>
@@ -264,7 +270,7 @@ export function AlumnosReportTable({
                         <div key={f.alumno_id} className={i > 0 ? 'border-t border-border' : ''}>
                             <button
                                 onClick={() => setExpandido(abierto ? null : f.alumno_id)}
-                                className="w-full grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-3 text-sm text-left hover:bg-black/[0.02] items-center"
+                                className="w-full grid grid-cols-[40px_1.6fr_1.2fr_0.7fr_0.7fr_0.8fr_0.7fr_0.9fr_1fr] gap-2 px-4 py-3 text-sm text-left hover:bg-black/[0.02] items-center"
                             >
                                 <span className="text-inkSoft">{i + 1}</span>
                                 <span className="font-semibold flex items-center gap-1.5">
@@ -274,6 +280,9 @@ export function AlumnosReportTable({
                                 <span className="text-inkSoft truncate">{f.grupo_nombre}</span>
                                 <span className="text-center text-green font-semibold">{conteo.asistio}</span>
                                 <span className="text-center text-amber font-semibold">{conteo.tardanza}</span>
+                                <span className="justify-self-center min-w-[2.5rem] text-center rounded-md bg-green/10 text-green font-bold tabular-nums py-0.5">
+                                    {conteo.asistio + conteo.tardanza + detalle.justificadas.length}
+                                </span>
                                 <span className="text-center text-red font-semibold">{conteo.falto}</span>
                                 <span className="text-center">{conteo.horasFalta}</span>
                                 <span className={`text-right ${claseRiesgo(f.horas_falta_restantes)}`}>
@@ -324,7 +333,8 @@ export function AlumnosReportTable({
             </div>
 
             <p className="text-[11.5px] text-inkSoft mt-3">
-                "Faltas restantes" = tope permitido según horas de clase semanales (horas × 3 por semestre) menos las horas de
+                "Total asist." = asistencias + retardos + faltas justificadas: es el número que se reporta en el sistema de la
+                escuela. "Faltas restantes" = tope permitido según horas de clase semanales (horas × 3 por semestre) menos las horas de
                 falta acumuladas. Un día de 2 horas seguidas cuenta como 2 si el alumno falta.
                 {periodo && ' Con un periodo elegido, "Faltas restantes" sigue contando todo el curso.'}
             </p>
