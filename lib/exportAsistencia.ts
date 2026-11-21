@@ -20,6 +20,35 @@ export function exportarAsistenciaExcel(nombreArchivo: string, filas: FilaExport
   XLSX.writeFile(wb, `${nombreArchivo}.xlsx`);
 }
 
+// Lista del "Resumen con IA" (asistencias por periodo para reportar a la escuela).
+export interface FilaResumenPeriodo {
+  nombre: string;
+  asistencias: number; // asistió + retardos + justificadas
+  retardos: number;
+  justificadas: number;
+  faltas: number;
+}
+
+export function filasResumenPeriodo(filas: FilaResumenPeriodo[]): (string | number)[][] {
+  return [
+    ['N°', 'Alumno', 'Asistencias', 'Retardos', 'Justificadas', 'Faltas'],
+    ...filas.map((f, i) => [i + 1, f.nombre, f.asistencias, f.retardos, f.justificadas, f.faltas])
+  ];
+}
+
+export function exportarResumenPeriodoExcel(nombreArchivo: string, titulo: string, filas: FilaResumenPeriodo[]) {
+  const ws = XLSX.utils.aoa_to_sheet([
+    [titulo],
+    ['Asistencias = asistió + retardos + faltas justificadas, por hora de clase. Faltas = solo las no justificadas.'],
+    [],
+    ...filasResumenPeriodo(filas)
+  ]);
+  ws['!cols'] = [{ wch: 5 }, { wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 8 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Asistencias');
+  XLSX.writeFile(wb, `${nombreArchivo}.xlsx`);
+}
+
 export function exportarAsistenciaPDF(titulo: string, filas: FilaExportAsistencia[]) {
   const ventana = window.open('', '_blank');
   if (!ventana) return;

@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { exportarResumenPeriodoExcel, filasResumenPeriodo } from '@/lib/exportAsistencia';
+import { sanitizarNombreArchivo } from '@/lib/utils';
+import { Icono } from './Icono';
 
 interface AlumnoResumen {
     id: string;
@@ -12,6 +15,7 @@ interface AlumnoResumen {
 }
 
 interface Resultado {
+    curso: string;
     resumen: string | null;
     avisoIA?: string;
     generadoEl: string;
@@ -26,6 +30,10 @@ function formatearFecha(iso: string) {
     return new Date(anio, mes - 1, dia).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function textoPeriodo(r: Resultado) {
+    return r.desde ? `Del ${formatearFecha(r.desde)} al ${formatearFecha(r.hasta)}` : `Hasta el ${formatearFecha(r.hasta)}`;
+}
+
 function plural(n: number, singular: string, varios: string) {
     return `${n} ${n === 1 ? singular : varios}`;
 }
@@ -36,6 +44,7 @@ export function AiSummaryButton({ grupoId }: { grupoId: string }) {
     const [cargando, setCargando] = useState(false);
     const [resultado, setResultado] = useState<Resultado | null>(null);
     const [error, setError] = useState('');
+    const [copiado, setCopiado] = useState<'ok' | 'error' | null>(null);
 
     const fechasInvertidas = !!desde && !!hasta && desde > hasta;
 
@@ -54,11 +63,32 @@ export function AiSummaryButton({ grupoId }: { grupoId: string }) {
                 return;
             }
             setResultado(data);
+            setCopiado(null);
         } catch {
             setError('No se pudo generar el resumen. Revisa tu conexión.');
         } finally {
             setCargando(false);
         }
+    }
+
+    // Texto separado por tabuladores: al pegarlo en Excel cada dato cae en su columna.
+    async function copiarParaExcel(r: Resultado) {
+        const texto = filasResumenPeriodo(r.alumnos).map((fila) => fila.join('\t')).join('\n');
+        try {
+            await navigator.clipboard.writeText(texto);
+            setCopiado('ok');
+        } catch {
+            setCopiado('error');
+        }
+    }
+
+    function descargarExcel(r: Resultado) {
+        const rango = r.desde ? `${r.desde}-al-${r.hasta}` : `hasta-${r.hasta}`;
+        exportarResumenPeriodoExcel(
+            `${sanitizarNombreArchivo(r.curso)}-asistencias-${rango}`,
+            `${r.curso} — ${textoPeriodo(r)} (${plural(r.clases, 'hora de clase', 'horas de clase')})`,
+            r.alumnos
+        );
     }
 
     return (
@@ -110,15 +140,34 @@ export function AiSummaryButton({ grupoId }: { grupoId: string }) {
             {resultado && (
                 <div className="mt-3">
                     <div className="text-[11px] text-goldDark font-semibold bg-gold/10 border border-gold/30 rounded px-2.5 py-1.5 mb-2 inline-block">
-                        {resultado.desde
-                            ? `Del ${formatearFecha(resultado.desde)} al ${formatearFecha(resultado.hasta)}`
-                            : `Hasta el ${formatearFecha(resultado.hasta)}`}{' '}
-                        · {plural(resultado.clases, 'hora de clase registrada', 'horas de clase registradas')} · generado el{' '}
+                        {textoPeriodo(resultado)} · {plural(resultado.clases, 'hora de clase registrada', 'horas de clase registradas')} · generado el{' '}
                         {new Date(resultado.generadoEl).toLocaleString('es-PE')}
                     </div>
 
                     {resultado.resumen && <p className="text-sm leading-relaxed">{resultado.resumen}</p>}
                     {resultado.avisoIA && <p className="text-[12.5px] text-inkSoft">{resultado.avisoIA}</p>}
+
+                    {resultado.clases > 0 && (
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <button
+                                onClick={() => copiarParaExcel(resultado)}
+                                className="min-h-[38px] inline-flex items-center gap-1.5 px-3 rounded-md border border-border bg-white text-[13px] font-semibold hover:bg-bg"
+                            >
+                                <Icono nombre={copiado === 'ok' ? 'check' : 'copiar'} className={`w-4 h-4 ${copiado === 'ok' ? 'text-green' : ''}`} />
+                                {copiado === 'ok' ? 'Copiado: pégalo en Excel' : 'Copiar para Excel'}
+                            </button>
+                            <button
+                                onClick={() => descargarExcel(resultado)}
+                                className="min-h-[38px] inline-flex items-center gap-1.5 px-3 rounded-md border border-border bg-white text-[13px] font-semibold hover:bg-bg"
+                            >
+                                <Icono nombre="descargar" className="w-4 h-4" />
+                                Descargar Excel
+                            </button>
+                            {copiado === 'error' && (
+                                <span className="text-[12px] text-red">No se pudo copiar; usa "Descargar Excel".</span>
+                            )}
+                        </div>
+                    )}
 
                     {resultado.clases > 0 && (
                         <div className="mt-3 border border-border rounded-md overflow-hidden">

@@ -84,7 +84,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const clases = new Set(registros.map((r) => `${r.fecha}|${r.clase}`)).size;
     // Sin "Desde", el periodo empieza en la primera clase registrada.
     const desde = desdePedido || registros[0]?.fecha || null;
-    const respuestaBase = { generadoEl: new Date().toISOString(), desde, hasta, clases, alumnos: lista };
+    const respuestaBase = { curso: grupo.nombre, generadoEl: new Date().toISOString(), desde, hasta, clases, alumnos: lista };
 
     if (clases === 0) {
         return NextResponse.json({ ...respuestaBase, resumen: null, avisoIA: 'No hay asistencia registrada en ese periodo.' });
