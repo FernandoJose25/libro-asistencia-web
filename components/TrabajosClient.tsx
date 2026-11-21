@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno } from '@/lib/types';
+import { conReintentos, esErrorDeRed } from '@/lib/utils';
 import {
   OPCIONES_NOTA_TRABAJO,
   PARCIALES,
@@ -153,14 +154,16 @@ export function TrabajosClient({
     poner(nueva);
     setErrorGuardar('');
     setPendientes((n) => n + 1);
-    const { error } = nueva
-      ? await supabase
-          .from('notas')
-          .upsert(
-            { ...nueva, grupo_id: grupoId, profesor_id: profesorId, actualizado_en: new Date().toISOString() },
-            { onConflict: 'alumno_id,evaluacion_id' }
-          )
-      : await supabase.from('notas').delete().eq('alumno_id', alumno.id).eq('evaluacion_id', t.id);
+    const { error } = await conReintentos(() =>
+      nueva
+        ? supabase
+            .from('notas')
+            .upsert(
+              { ...nueva, grupo_id: grupoId, profesor_id: profesorId, actualizado_en: new Date().toISOString() },
+              { onConflict: 'alumno_id,evaluacion_id' }
+            )
+        : supabase.from('notas').delete().eq('alumno_id', alumno.id).eq('evaluacion_id', t.id)
+    );
     setPendientes((n) => n - 1);
     if (error) {
       setNotas((prev) => {
@@ -170,7 +173,11 @@ export function TrabajosClient({
         else copia.delete(clave);
         return copia;
       });
-      setErrorGuardar(`No se guardó la calificación de ${alumno.nombre}: ${error.message}`);
+      setErrorGuardar(
+        esErrorDeRed(error)
+          ? `Sin conexión: no se guardó la calificación de ${alumno.nombre}. Vuelve a elegirla.`
+          : `No se guardó la calificación de ${alumno.nombre}: ${error.message}`
+      );
     }
   }
 

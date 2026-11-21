@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno } from '@/lib/types';
-import { sanitizarNombreArchivo } from '@/lib/utils';
+import { conReintentos, esErrorDeRed, sanitizarNombreArchivo } from '@/lib/utils';
 import { copiarTablaParaExcel, exportarTablaExcel } from '@/lib/exportAsistencia';
 import {
   calificacionParcial,
@@ -109,10 +109,10 @@ export function ExamenesClient({
     poner(nueva);
     setCopiado(null);
     setPendientes((n) => n + 1);
-    const { error } =
+    const { error } = await conReintentos(() =>
       nueva === undefined
-        ? await supabase.from('examenes').delete().eq('alumno_id', alumno.id).eq('parcial', p)
-        : await supabase.from('examenes').upsert(
+        ? supabase.from('examenes').delete().eq('alumno_id', alumno.id).eq('parcial', p)
+        : supabase.from('examenes').upsert(
             {
               alumno_id: alumno.id,
               grupo_id: grupoId,
@@ -122,7 +122,8 @@ export function ExamenesClient({
               actualizado_en: new Date().toISOString()
             },
             { onConflict: 'alumno_id,parcial' }
-          );
+          )
+    );
     setPendientes((n) => n - 1);
     if (error) {
       setExamenes((prev) => {
@@ -132,7 +133,10 @@ export function ExamenesClient({
         else copia.set(clave, anterior);
         return copia;
       });
-      setErrores((prev) => ({ ...prev, [alumno.id]: `No se guardó: ${error.message}` }));
+      setErrores((prev) => ({
+        ...prev,
+        [alumno.id]: esErrorDeRed(error) ? 'Sin conexión: no se guardó. Vuelve a escribirla.' : `No se guardó: ${error.message}`
+      }));
     }
   }
 

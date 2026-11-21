@@ -34,3 +34,25 @@ export async function leerTodo<T>(
         if (!data || data.length < 1000) return filas;
     }
 }
+
+// "Failed to fetch" (Chrome/Brave), "NetworkError…" (Firefox), "Load failed"
+// (Safari): la petición no llegó a Supabase o se cortó la respuesta. Pasa con
+// señal inestable en el celular, no es un error de los datos.
+export function esErrorDeRed(error: { message: string } | null): boolean {
+    return !!error && /Failed to fetch|NetworkError|Load failed|fetch failed/i.test(error.message);
+}
+
+// Repite una escritura que se puede repetir sin efecto doble (upsert o delete)
+// cuando falla por la red.
+export async function conReintentos<T extends { error: { message: string } | null }>(
+    enviar: () => PromiseLike<T>,
+    esperasMs = [800, 2000]
+): Promise<T> {
+    let resultado = await enviar();
+    for (const ms of esperasMs) {
+        if (!esErrorDeRed(resultado.error)) break;
+        await new Promise((r) => setTimeout(r, ms));
+        resultado = await enviar();
+    }
+    return resultado;
+}
