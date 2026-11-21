@@ -8,9 +8,11 @@ import { sanitizarNombreArchivo } from '@/lib/utils';
 import { copiarTablaParaExcel, exportarTablaExcel } from '@/lib/exportAsistencia';
 import {
   calificacionParcial,
+  calificacionSistema,
   claveNota,
   formatearNota,
   promedioTrabajos,
+  redondearDecima,
   type NotaTrabajo,
   type Parcial,
   type Trabajo
@@ -21,7 +23,7 @@ import { Icono } from './Icono';
 
 const claveExamen = (alumnoId: string, parcial: Parcial) => `${alumnoId}|${parcial}`;
 // Para Excel: número con una decimal como máximo, o celda vacía.
-const celda = (n: number | null) => (n === null ? '' : Math.round(n * 10) / 10);
+const celda = (n: number | null) => (n === null ? '' : redondearDecima(n));
 
 export function ExamenesClient({
   grupoId,
@@ -137,19 +139,28 @@ export function ExamenesClient({
   const filas = alumnos.map((a) => {
     const trabajosProm = promedioTrabajos(a.id, trabajosDelParcial, notas);
     const examen = examenes.get(claveExamen(a.id, parcial)) ?? null;
+    const calificacion = calificacionParcial(trabajosProm, examen, porcentajeTrabajos);
     return {
       alumno: a,
       trabajos: trabajosProm,
       calificados: trabajosDelParcial.filter((t) => notas.has(claveNota(a.id, t.id))).length,
       examen,
-      calificacion: calificacionParcial(trabajosProm, examen, porcentajeTrabajos)
+      calificacion,
+      sistema: calificacionSistema(calificacion)
     };
   });
 
   function tabla() {
     return [
-      ['N°', 'Alumno', `Trabajos (${porcentajeTrabajos}%)`, `Examen (${100 - porcentajeTrabajos}%)`, `Calificación parcial ${parcial}`],
-      ...filas.map((f, i) => [i + 1, f.alumno.nombre, celda(f.trabajos), celda(f.examen), celda(f.calificacion)])
+      [
+        'N°',
+        'Alumno',
+        `Trabajos (${porcentajeTrabajos}%)`,
+        `Examen (${100 - porcentajeTrabajos}%)`,
+        `Calificación real P${parcial}`,
+        `Calificación sistema P${parcial}`
+      ],
+      ...filas.map((f, i) => [i + 1, f.alumno.nombre, celda(f.trabajos), celda(f.examen), celda(f.calificacion), f.sistema ?? ''])
     ];
   }
 
@@ -168,7 +179,8 @@ export function ExamenesClient({
       `Parcial ${parcial}`,
       [
         `${grupoNombre} — Calificaciones del parcial ${parcial}`,
-        `Calificación = promedio de trabajos × ${porcentajeTrabajos}% + examen × ${100 - porcentajeTrabajos}%. NE cuenta como 0.`
+        `Calificación = promedio de trabajos × ${porcentajeTrabajos}% + examen × ${100 - porcentajeTrabajos}%. Trabajos NE o sin calificar cuentan como 0.`,
+        'Sistema = la calificación real redondeada (desde .5 sube: 5.5 → 6), mínimo 5.'
       ],
       tabla()
     );
@@ -228,7 +240,7 @@ export function ExamenesClient({
             </p>
             {trabajosDelParcial.length === 0 && porcentajeTrabajos > 0 && (
               <p className="text-[12.5px] text-amber mt-1.5">
-                Este parcial aún no tiene trabajos: la calificación sale cuando haya trabajos calificados.{' '}
+                Este parcial aún no tiene trabajos: la calificación sale cuando haya trabajos.{' '}
                 <Link href={`/dashboard/trabajos/${grupoId}`} className="font-bold underline underline-offset-2">
                   Ir a Trabajos
                 </Link>
@@ -236,12 +248,13 @@ export function ExamenesClient({
             )}
           </div>
 
-          <div className="hidden md:grid grid-cols-[3rem_minmax(0,1fr)_6rem_6.5rem_6.5rem] gap-x-3 px-4 py-2 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
+          <div className="hidden md:grid grid-cols-[3rem_minmax(0,1fr)_6rem_6.5rem_5.5rem_5.5rem] gap-x-3 px-4 py-2 text-[10.5px] uppercase tracking-wide text-inkSoft border-b border-border bg-bg/60">
             <div className="text-right pr-1">N°</div>
             <div>Alumno</div>
             <div className="text-center">Trabajos {porcentajeTrabajos}%</div>
             <div className="text-center">Examen {100 - porcentajeTrabajos}%</div>
-            <div className="text-center">Calificación</div>
+            <div className="text-center">Real</div>
+            <div className="text-center">Sistema</div>
           </div>
 
           <ol>
@@ -254,13 +267,13 @@ export function ExamenesClient({
                   <span className="w-10 md:w-12 shrink-0 pt-[13px] md:pt-0 md:self-center pr-2.5 text-right font-display text-[16px] text-inkSoft tabular-nums select-none">
                     {i + 1}
                   </span>
-                  <div className="flex-1 min-w-0 border-l-2 border-red/20 pl-3 pr-3 md:pr-4 py-2.5 grid grid-cols-3 md:grid-cols-[minmax(0,1fr)_6rem_6.5rem_6.5rem] items-center gap-x-3 gap-y-2">
-                    <div className="col-span-3 md:col-span-1 min-w-0">
+                  <div className="flex-1 min-w-0 border-l-2 border-red/20 pl-3 pr-3 md:pr-4 py-2.5 grid grid-cols-4 md:grid-cols-[minmax(0,1fr)_6rem_6.5rem_5.5rem_5.5rem] items-center gap-x-2 md:gap-x-3 gap-y-2">
+                    <div className="col-span-4 md:col-span-1 min-w-0">
                       <div className="text-[15.5px] leading-snug">{a.nombre}</div>
                       {error && <div className="text-[12px] text-red font-semibold">{error}</div>}
                     </div>
                     <div className="text-center">
-                      <div className="md:hidden text-[10.5px] uppercase tracking-wide text-inkSoft">Trabajos {porcentajeTrabajos}%</div>
+                      <div className="md:hidden text-[10.5px] uppercase tracking-wide text-inkSoft">Trab. {porcentajeTrabajos}%</div>
                       <div className="text-[15px] tabular-nums">{formatearNota(f.trabajos)}</div>
                       {trabajosDelParcial.length > 0 && f.calificados < trabajosDelParcial.length && (
                         <div className="text-[11px] text-amber">
@@ -269,7 +282,7 @@ export function ExamenesClient({
                       )}
                     </div>
                     <label className="text-center">
-                      <span className="md:hidden block text-[10.5px] uppercase tracking-wide text-inkSoft">Examen {100 - porcentajeTrabajos}%</span>
+                      <span className="md:hidden block text-[10.5px] uppercase tracking-wide text-inkSoft">Exam. {100 - porcentajeTrabajos}%</span>
                       <input
                         type="text"
                         inputMode="decimal"
@@ -285,8 +298,12 @@ export function ExamenesClient({
                       />
                     </label>
                     <div className="text-center">
-                      <div className="md:hidden text-[10.5px] uppercase tracking-wide text-inkSoft">Parcial {parcial}</div>
-                      <div className="font-display text-[22px] leading-tight font-semibold tabular-nums text-navy">{formatearNota(f.calificacion)}</div>
+                      <div className="md:hidden text-[10.5px] uppercase tracking-wide text-inkSoft">Real</div>
+                      <div className="font-display text-[20px] leading-tight tabular-nums text-inkSoft">{formatearNota(f.calificacion)}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="md:hidden text-[10.5px] uppercase tracking-wide text-inkSoft">Sistema</div>
+                      <div className="font-display text-[24px] leading-tight font-semibold tabular-nums text-navy">{f.sistema ?? '—'}</div>
                     </div>
                   </div>
                 </li>
@@ -300,8 +317,8 @@ export function ExamenesClient({
         </section>
 
         <p className="text-[11.5px] text-inkSoft mt-3">
-          Trabajos = promedio de los trabajos calificados del parcial (NE cuenta como 0). La calificación aparece cuando el alumno
-          tiene trabajos calificados y examen. Se muestra con una decimal: redondéala según la regla de tu escuela.
+          Trabajos = promedio de todos los trabajos del parcial: NE y — (sin calificar) cuentan como 0. Real = la calificación con
+          una decimal. Sistema = la que se captura en la escuela: la real redondeada (desde .5 sube: 5.5 → 6) y nunca menor a 5.
         </p>
       </div>
     </div>

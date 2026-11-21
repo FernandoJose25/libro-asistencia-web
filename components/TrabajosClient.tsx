@@ -354,7 +354,7 @@ export function TrabajosClient({
                 </div>
               )}
               <p className="text-[12px] text-inkSoft mt-2">
-                NE = no entregó (cuenta como 0) · — = sin calificar (no cuenta en el promedio).{' '}
+                NE = no entregó · — = sin calificar · los dos cuentan como 0 en el promedio.{' '}
                 <span className={pendientes > 0 ? 'text-amber font-bold' : ''}>
                   {pendientes > 0 ? 'Guardando…' : 'Cada calificación se guarda al elegirla.'}
                 </span>
