@@ -14,12 +14,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Fórmulas químicas de fondo en el panel. Queda quieto porque lo que se
-   desplaza es el contenedor interno de cada página, no esta columna. */
-.fondo-quimica {
-  background: theme('colors.bg') url('/fondo-quimica.webp') center / cover no-repeat;
-}
-
 /* Marcador nativo de <details> fuera; cada resumen dibuja su propio chevrón. */
 summary::-webkit-details-marker {
   display: none;
