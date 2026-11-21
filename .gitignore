@@ -9,3 +9,4 @@ node_modules
 # Herramientas locales / generados
 .claude/
 tsconfig.tsbuildinfo
+supabase/.temp/

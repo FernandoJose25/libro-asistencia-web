@@ -20,3 +20,17 @@ export const ZONA_HORARIA = 'America/Lima';
 export function fechaLocalISO(fecha: Date = new Date(), timeZone?: string): string {
     return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(fecha);
 }
+
+// Supabase devuelve como máximo 1000 filas por consulta: pide páginas hasta
+// terminar. La consulta debe tener un orden estable (por ejemplo .order('id')).
+export async function leerTodo<T>(
+    pedirPagina: (desde: number, hasta: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>
+): Promise<T[]> {
+    const filas: T[] = [];
+    for (let inicio = 0; ; inicio += 1000) {
+        const { data, error } = await pedirPagina(inicio, inicio + 999);
+        if (error) throw new Error(error.message);
+        filas.push(...(data || []));
+        if (!data || data.length < 1000) return filas;
+    }
+}

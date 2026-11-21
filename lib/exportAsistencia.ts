@@ -37,16 +37,27 @@ export function filasResumenPeriodo(filas: FilaResumenPeriodo[]): (string | numb
 }
 
 export function exportarResumenPeriodoExcel(nombreArchivo: string, titulo: string, filas: FilaResumenPeriodo[]) {
-  const ws = XLSX.utils.aoa_to_sheet([
-    [titulo],
-    ['Asistencias = asistió + retardos + faltas justificadas, por hora de clase. Faltas = solo las no justificadas.'],
-    [],
-    ...filasResumenPeriodo(filas)
-  ]);
-  ws['!cols'] = [{ wch: 5 }, { wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 8 }];
+  exportarTablaExcel(
+    nombreArchivo,
+    'Asistencias',
+    [titulo, 'Asistencias = asistió + retardos + faltas justificadas, por hora de clase. Faltas = solo las no justificadas.'],
+    filasResumenPeriodo(filas)
+  );
+}
+
+// Tabla con líneas de encabezado arriba (curso, periodo, notas). La columna
+// 2 es el nombre del alumno: más ancha.
+export function exportarTablaExcel(nombreArchivo: string, hoja: string, encabezado: string[], tabla: (string | number)[][]) {
+  const ws = XLSX.utils.aoa_to_sheet([...encabezado.map((linea) => [linea]), [], ...tabla]);
+  ws['!cols'] = (tabla[0] || []).map((_, i) => ({ wch: i === 1 ? 40 : i === 0 ? 5 : 12 }));
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Asistencias');
+  XLSX.utils.book_append_sheet(wb, ws, hoja);
   XLSX.writeFile(wb, `${nombreArchivo}.xlsx`);
+}
+
+// Texto separado por tabuladores: al pegarlo en Excel cada dato cae en su columna.
+export async function copiarTablaParaExcel(tabla: (string | number)[][]) {
+  await navigator.clipboard.writeText(tabla.map((fila) => fila.join('\t')).join('\n'));
 }
 
 export function exportarAsistenciaPDF(titulo: string, filas: FilaExportAsistencia[]) {

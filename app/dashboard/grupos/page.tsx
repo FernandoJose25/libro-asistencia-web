@@ -13,7 +13,7 @@ export default async function GruposPage() {
 
     const { data: gruposTodos } = await supabase
         .from('grupos')
-        .select('id, nombre, activo, umbral_falta_porcentaje, horas_clase_semana, faltas_permitidas_semestre')
+        .select('id, nombre, activo, umbral_falta_porcentaje, horas_clase_semana, faltas_permitidas_semestre, porcentaje_trabajos')
         .order('nombre');
 
     const { data: alumnosTodos } = await supabase
@@ -38,7 +38,8 @@ export default async function GruposPage() {
                     </div>
                     <p className="text-[13px] text-inkSoft mb-5">
                         Crea tus cursos, gestiona sus alumnos y configura el umbral de riesgo, horas de clase por semana y
-                        tope de faltas permitidas por semestre.
+                        tope de faltas permitidas por semestre, y qué porcentaje de la calificación del parcial corresponde a
+                        los trabajos.
                     </p>
 
                     <GestionAlumnosGrupo grupos={gruposConAlumnos} />

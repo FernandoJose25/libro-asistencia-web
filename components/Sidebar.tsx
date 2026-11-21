@@ -74,6 +74,8 @@ export function Sidebar() {
         <nav className="flex flex-col gap-0.5">
           {item('/dashboard/grupos', 'Grupos', 'carpeta', '/dashboard/grupos')}
           {item('/dashboard/asistencia', 'Asistencia', 'calendario', '/dashboard/asistencia')}
+          {item('/dashboard/trabajos', 'Trabajos', 'lapiz', '/dashboard/trabajos')}
+          {item('/dashboard/examenes', 'Exámenes', 'examen', '/dashboard/examenes')}
           {item('/dashboard/alumnos', 'Alumnos', 'birrete', '/dashboard/alumnos')}
           {item('/dashboard/drive', 'Drive', 'nube', '/dashboard/drive')}
         </nav>

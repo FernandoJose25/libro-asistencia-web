@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Grupo } from '@/lib/types';
 
-export function AsistenciaTabs({ grupos }: { grupos: Grupo[] }) {
+// Pestañas de grupo de Asistencia, Trabajos y Exámenes: "base" es la sección.
+export function AsistenciaTabs({ grupos, base = '/dashboard/asistencia' }: { grupos: Grupo[]; base?: string }) {
   const pathname = usePathname();
 
   if (grupos.length === 0) {
@@ -15,7 +16,7 @@ export function AsistenciaTabs({ grupos }: { grupos: Grupo[] }) {
           <Link href="/dashboard/grupos" className="text-goldDark font-semibold">
             Crea uno desde Grupos
           </Link>{' '}
-          para poder tomar asistencia.
+          para empezar.
         </span>
       </div>
     );
@@ -24,7 +25,7 @@ export function AsistenciaTabs({ grupos }: { grupos: Grupo[] }) {
   return (
     <div className="flex items-end gap-1 px-3 md:px-6 pt-2.5 border-b border-border bg-white overflow-x-auto">
       {grupos.map((g) => {
-        const href = `/dashboard/asistencia/${g.id}`;
+        const href = `${base}/${g.id}`;
         const activo = pathname === href;
         return (
           <Link

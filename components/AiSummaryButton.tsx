@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { exportarResumenPeriodoExcel, filasResumenPeriodo } from '@/lib/exportAsistencia';
+import { copiarTablaParaExcel, exportarResumenPeriodoExcel, filasResumenPeriodo } from '@/lib/exportAsistencia';
 import { sanitizarNombreArchivo } from '@/lib/utils';
 import { Icono } from './Icono';
 
@@ -71,11 +71,9 @@ export function AiSummaryButton({ grupoId }: { grupoId: string }) {
         }
     }
 
-    // Texto separado por tabuladores: al pegarlo en Excel cada dato cae en su columna.
     async function copiarParaExcel(r: Resultado) {
-        const texto = filasResumenPeriodo(r.alumnos).map((fila) => fila.join('\t')).join('\n');
         try {
-            await navigator.clipboard.writeText(texto);
+            await copiarTablaParaExcel(filasResumenPeriodo(r.alumnos));
             setCopiado('ok');
         } catch {
             setCopiado('error');

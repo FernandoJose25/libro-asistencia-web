@@ -2,19 +2,20 @@ import { NextResponse } from 'next/server';
 import { contextoSesion } from '@/lib/driveContext';
 
 // Guarda la configuración de un grupo (umbral de riesgo, horas de clase por
-// semana, tope de faltas del semestre). No habla con Drive, por eso usa
+// semana, tope de faltas del semestre, % de trabajos en la calificación). No habla con Drive, por eso usa
 // contextoSesion() y no contextoDrive().
 export async function POST(request: Request, { params }: { params: { id: string } }) {
     const ctx = await contextoSesion();
     if (ctx.error) return ctx.error;
     const { session, supabase } = ctx;
 
-    const { umbralFaltaPorcentaje, horasClaseSemana, faltasPermitidasSemestre } = await request.json();
+    const { umbralFaltaPorcentaje, horasClaseSemana, faltasPermitidasSemestre, porcentajeTrabajos } = await request.json();
 
     const cambios: Record<string, number> = {};
     if (umbralFaltaPorcentaje !== undefined) cambios.umbral_falta_porcentaje = Number(umbralFaltaPorcentaje);
     if (horasClaseSemana !== undefined) cambios.horas_clase_semana = Number(horasClaseSemana);
     if (faltasPermitidasSemestre !== undefined) cambios.faltas_permitidas_semestre = Number(faltasPermitidasSemestre);
+    if (porcentajeTrabajos !== undefined) cambios.porcentaje_trabajos = Math.min(100, Math.max(0, Number(porcentajeTrabajos) || 0));
 
     if (Object.keys(cambios).length === 0) {
         return NextResponse.json({ error: 'Nada que guardar' }, { status: 400 });

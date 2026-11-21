@@ -15,6 +15,7 @@ interface GrupoConAlumnos {
   umbral_falta_porcentaje: number;
   horas_clase_semana: number;
   faltas_permitidas_semestre: number;
+  porcentaje_trabajos: number;
   alumnos: Alumno[];
 }
 
@@ -22,6 +23,7 @@ interface ConfigEdit {
   umbral: string;
   horasClaseSemana: string;
   faltasPermitidasSemestre: string;
+  porcentajeTrabajos: string;
 }
 
 export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
@@ -148,7 +150,8 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
       body: JSON.stringify({
         umbralFaltaPorcentaje: Number(config.umbral) || 0,
         horasClaseSemana: Number(config.horasClaseSemana) || 0,
-        faltasPermitidasSemestre: Number(config.faltasPermitidasSemestre) || 0
+        faltasPermitidasSemestre: Number(config.faltasPermitidasSemestre) || 0,
+        porcentajeTrabajos: Math.min(100, Math.max(0, Number(config.porcentajeTrabajos) || 0))
       })
     });
     setGuardandoConfig(null);
@@ -173,7 +176,8 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
         const config = configEdit[g.id] ?? {
           umbral: String(g.umbral_falta_porcentaje),
           horasClaseSemana: String(g.horas_clase_semana),
-          faltasPermitidasSemestre: String(g.faltas_permitidas_semestre)
+          faltasPermitidasSemestre: String(g.faltas_permitidas_semestre),
+          porcentajeTrabajos: String(g.porcentaje_trabajos ?? 50)
         };
         const setConfig = (cambios: Partial<ConfigEdit>) =>
           setConfigEdit((prev) => ({ ...prev, [g.id]: { ...config, ...cambios } }));
@@ -230,6 +234,21 @@ export function GestionAlumnosGrupo({ grupos }: { grupos: GrupoConAlumnos[] }) {
                     onChange={(e) => setConfig({ faltasPermitidasSemestre: e.target.value })}
                     className="w-16 text-xs border border-border rounded px-2 py-1"
                   />
+
+                  <span className="text-[11.5px] text-inkSoft ml-3" title="El resto de la calificación del parcial corresponde al examen">
+                    Trabajos (% de la calificación del parcial):
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={config.porcentajeTrabajos}
+                    onChange={(e) => setConfig({ porcentajeTrabajos: e.target.value })}
+                    className="w-16 text-xs border border-border rounded px-2 py-1"
+                  />
+                  <span className="text-[11.5px] text-inkSoft">
+                    % · examen {Math.max(0, 100 - (Number(config.porcentajeTrabajos) || 0))}%
+                  </span>
 
                   <button
                     onClick={() => guardarConfigGrupo(g.id, config)}
