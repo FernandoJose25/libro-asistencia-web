@@ -142,6 +142,10 @@ export function AsistenciaClient({
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
   const [copiandoHora1, setCopiandoHora1] = useState(false);
   const [copiadoHora1, setCopiadoHora1] = useState(false);
+  const [sinClasesAbierto, setSinClasesAbierto] = useState(false);
+  const [motivoSinClases, setMotivoSinClases] = useState('');
+  const [justificandoDia, setJustificandoDia] = useState(false);
+  const [diaJustificado, setDiaJustificado] = useState('');
   const cargaActual = useRef(0);
   const edicion = useRef(0); // sube con cada cambio: detecta ediciones hechas mientras se guardaba
 
@@ -184,6 +188,7 @@ export function AsistenciaClient({
     setGuardadoEn(null);
     setErrorSync('');
     setCopiadoHora1(false);
+    setDiaJustificado('');
   }
 
   // Al abrir: usar la fecha local del dispositivo (el servidor solo la estima)
@@ -411,11 +416,11 @@ export function AsistenciaClient({
     cargarFechaClase(cargado.fecha, cargado.clase);
   }
 
-  async function guardarEnSupabase(f: string, c: 1 | 2) {
+  async function guardarEnSupabase(f: string, clases: (1 | 2)[], lista: Fila[] = filas) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('No hay sesión activa');
 
-    const registros = filas.map((fila) => ({
+    const registros = clases.flatMap((c) => lista.map((fila) => ({
       alumno_id: fila.alumno.id,
       grupo_id: grupoId,
       profesor_id: user.id,
@@ -426,7 +431,7 @@ export function AsistenciaClient({
       justificada: fila.estatus === 'falto' ? fila.justificada : false,
       justificacion_motivo: fila.estatus === 'falto' && fila.justificada ? fila.justificacionMotivo : null,
       justificacion_detalle: fila.estatus === 'falto' && fila.justificada ? fila.justificacionDetalle : null
-    }));
+    })));
     const { error } = await supabase.from('asistencia_registros').upsert(registros, { onConflict: 'alumno_id,fecha,clase' });
     if (error) throw new Error(`No se pudo guardar en la base de datos: ${error.message}`);
   }
@@ -455,7 +460,7 @@ export function AsistenciaClient({
     const version = edicion.current;
     setGuardando(true);
     try {
-      await guardarEnSupabase(f, c);
+      await guardarEnSupabase(f, [c]);
     } catch (e: any) {
       setErrorSync(e.message || 'No se pudo guardar.');
       setGuardando(false);
@@ -479,6 +484,75 @@ export function AsistenciaClient({
     }
   }
   guardarRef.current = () => guardar();
+
+  // Día sin clases (feriado, día inhábil): el día cuenta dentro del parcial,
+  // así que todos los alumnos quedan con falta justificada en la hora elegida
+  // o en las dos, con el motivo escrito. Las justificadas suman al total de
+  // asistencias. Se guarda directo, sin pasar por el botón Guardar.
+  async function justificarDiaSinClases(horas: (1 | 2)[]) {
+    const motivo = motivoSinClases.trim();
+    const f = cargado.fecha;
+    if (!motivo || filas.length === 0) return;
+    setErrorSync('');
+    setDiaJustificado('');
+    if (!navigator.onLine) {
+      setErrorSync('Sin conexión. Justifica el día cuando vuelva la señal.');
+      return;
+    }
+    const conDatos = horas.filter((c) => sesiones.has(`${f}|${c}`) || leerBorrador(f, c));
+    if (
+      conDatos.length > 0 &&
+      !confirm(
+        `${conDatos.length === 2 ? 'Las horas 1 y 2' : `La Hora ${conDatos[0]}`} del ${formatearFecha(f)} ya ${
+          conDatos.length === 2 ? 'tienen' : 'tiene'
+        } asistencia. Se va a reemplazar: todos los alumnos quedarán con falta justificada. ¿Continuar?`
+      )
+    ) {
+      return;
+    }
+
+    const carga = cargaActual.current;
+    const ahora = new Date().toISOString();
+    const justificadas: Fila[] = filas.map((fila) => ({
+      ...fila,
+      estatus: 'falto',
+      marcadoEn: ahora,
+      justificada: true,
+      justificacionMotivo: 'otro',
+      justificacionDetalle: motivo
+    }));
+    setJustificandoDia(true);
+    try {
+      await guardarEnSupabase(f, horas, justificadas);
+    } catch (e: any) {
+      setErrorSync(e.message || 'No se pudo justificar el día.');
+      setJustificandoDia(false);
+      return;
+    }
+
+    horas.forEach((c) => descartarBorrador(f, c));
+    setSesiones((prev) => {
+      const nuevas = new Set(prev);
+      horas.forEach((c) => nuevas.add(`${f}|${c}`));
+      return nuevas;
+    });
+    // Si mientras tanto eligió otro día u hora, no se le cambia la pantalla.
+    if (carga === cargaActual.current) await cargarFechaClase(f, cargado.clase);
+    setMotivoSinClases('');
+    setDiaJustificado(
+      `Listo: ${horas.length === 2 ? 'horas 1 y 2' : `Hora ${horas[0]}`} del ${formatearFecha(f).slice(0, 5)} justificada${
+        horas.length === 2 ? 's' : ''
+      } para los ${filas.length} alumnos.`
+    );
+
+    try {
+      for (const c of horas) await sincronizarConDrive(f, c);
+    } catch (e: any) {
+      setErrorSync(`El día quedó justificado, pero no se pudo copiar a Drive: ${e.message}`);
+    } finally {
+      setJustificandoDia(false);
+    }
+  }
 
   function filasExport() {
     return filas.map((f) => ({
@@ -655,6 +729,58 @@ export function AsistenciaClient({
                     </p>
                   </>
                 )}
+
+                <div className="mt-3 border-t border-rule pt-2">
+                  <button
+                    onClick={() => setSinClasesAbierto((v) => !v)}
+                    aria-expanded={sinClasesAbierto}
+                    className="w-full min-h-[40px] flex items-center justify-between gap-2 px-0.5 text-left text-[13.5px] font-bold text-goldDark"
+                  >
+                    ¿No hubo clases este día?
+                    <Icono nombre="abajo" className={`w-4 h-4 transition-transform duration-200 motion-reduce:transition-none ${sinClasesAbierto ? 'rotate-180' : ''}`} />
+                  </button>
+                  {sinClasesAbierto && (
+                    <div className="pt-1 pb-0.5">
+                      <label className="flex flex-col gap-1 text-[12px] font-bold text-inkSoft px-0.5">
+                        Motivo
+                        <input
+                          value={motivoSinClases}
+                          onChange={(e) => {
+                            setMotivoSinClases(e.target.value);
+                            setDiaJustificado('');
+                          }}
+                          placeholder="Ej. Día inhábil por festejo de la Independencia"
+                          maxLength={120}
+                          className="w-full min-h-[44px] px-3 py-2 border border-border rounded-[10px] text-[16px] sm:text-sm font-normal text-ink bg-white"
+                        />
+                      </label>
+                      <p className="mt-1.5 px-0.5 text-[12px] text-inkSoft leading-snug">
+                        Todos los alumnos quedan con falta justificada y esa hora cuenta en su total de asistencias del parcial.
+                      </p>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        {[
+                          { horas: [cargado.clase] as (1 | 2)[], titulo: 'Justificar 1 hora', sub: `Hora ${cargado.clase}` },
+                          { horas: [1, 2] as (1 | 2)[], titulo: 'Justificar 2 horas', sub: 'Horas 1 y 2' }
+                        ].map((op) => (
+                          <button
+                            key={op.titulo}
+                            onClick={() => justificarDiaSinClases(op.horas)}
+                            disabled={!motivoSinClases.trim() || justificandoDia || guardando || cargando || cargado.clase !== clase || filas.length === 0}
+                            className="min-h-[50px] flex flex-col items-center justify-center rounded-[10px] border border-green/40 bg-green/[0.06] text-green hover:bg-green/10 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
+                          >
+                            <span className="text-[13.5px] font-bold leading-tight">{justificandoDia ? 'Justificando…' : op.titulo}</span>
+                            <span className="text-[11.5px] leading-tight mt-0.5">{op.sub}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {diaJustificado && (
+                        <p role="status" className="mt-2 px-0.5 text-[12.5px] font-bold text-green leading-snug">
+                          {diaJustificado}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-white border border-border rounded-card p-4 flex-1">
@@ -801,7 +927,7 @@ export function AsistenciaClient({
             <div className="relative flex shrink-0">
               <button
                 onClick={() => guardar()}
-                disabled={guardando || cargando}
+                disabled={guardando || cargando || justificandoDia}
                 className="min-h-[46px] inline-flex items-center gap-2 pl-4 pr-3.5 rounded-l-[12px] bg-navy text-white text-[15px] font-bold disabled:opacity-60 hover:bg-navyActive active:scale-[0.98] transition"
               >
                 <Icono nombre="nubeSubir" className="w-[18px] h-[18px] text-gold" />

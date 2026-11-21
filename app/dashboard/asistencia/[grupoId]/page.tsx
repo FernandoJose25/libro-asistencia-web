@@ -62,7 +62,7 @@ export default async function AsistenciaGrupoPage({ params }: { params: { grupoI
 
   const { data: registrosTodos } = await supabase
     .from('asistencia_registros')
-    .select('fecha, clase, estatus')
+    .select('fecha, clase, estatus, justificada')
     .eq('grupo_id', grupo.id);
 
   const fechasClase = Array.from(
@@ -70,11 +70,13 @@ export default async function AsistenciaGrupoPage({ params }: { params: { grupoI
   ).sort();
 
   const totalAlumnos = (alumnos || []).length || 1;
-  const diasHeatmap = fechasClase.map((fc) => {
+  const diasHeatmap = fechasClase.flatMap((fc) => {
     const [fecha, clase] = fc.split('|');
     const delDia = (registrosTodos || []).filter((r) => r.fecha === fecha && String(r.clase) === clase);
+    // Día sin clases (todos con falta justificada): no es una clase con baja asistencia.
+    if (delDia.every((r) => r.estatus === 'falto' && r.justificada)) return [];
     const presentes = delDia.filter((r) => r.estatus === 'asistio' || r.estatus === 'tardanza').length;
-    return { fecha, tasaAsistencia: presentes / totalAlumnos };
+    return [{ fecha, tasaAsistencia: presentes / totalAlumnos }];
   });
 
   const inicial = (session.user.email || 'P')[0].toUpperCase();
