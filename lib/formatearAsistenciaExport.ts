@@ -4,7 +4,8 @@ import type { Estatus } from '@/lib/types';
 export const MOTIVO_LABEL: Record<MotivoJustificacion, string> = {
   salud: 'Salud',
   imprevisto: 'Imprevisto',
-  otro: 'Otro'
+  otro: 'Otro',
+  sin_clases: 'Sin clases'
 };
 
 export function formatearObservacion(

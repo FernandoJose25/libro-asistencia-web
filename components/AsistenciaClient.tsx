@@ -518,7 +518,7 @@ export function AsistenciaClient({
       estatus: 'falto',
       marcadoEn: ahora,
       justificada: true,
-      justificacionMotivo: 'otro',
+      justificacionMotivo: 'sin_clases',
       justificacionDetalle: motivo
     }));
     setJustificandoDia(true);

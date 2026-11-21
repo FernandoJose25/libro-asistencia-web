@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 
-export type MotivoJustificacion = 'salud' | 'imprevisto' | 'otro';
+// 'sin_clases' no está entre los botones: lo pone "¿No hubo clases este día?".
+export type MotivoJustificacion = 'salud' | 'imprevisto' | 'otro' | 'sin_clases';
 
 const MOTIVOS: { valor: MotivoJustificacion; label: string }[] = [
   { valor: 'salud', label: 'Salud' },
