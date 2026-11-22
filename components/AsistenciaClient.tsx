@@ -6,7 +6,7 @@ import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno, Estatus } from '@/lib/types';
 import { fechaLocalISO, sanitizarNombreArchivo } from '@/lib/utils';
 import { exportarAsistenciaExcel, exportarAsistenciaPDF } from '@/lib/exportAsistencia';
-import { formatearObservacion } from '@/lib/formatearAsistenciaExport';
+import { formatearEstado, formatearObservacion } from '@/lib/formatearAsistenciaExport';
 import { StatusPillGroup } from './StatusPill';
 import { AttendanceHeatmap } from './AttendanceHeatmap';
 import { AiSummaryButton } from './AiSummaryButton';
@@ -557,7 +557,7 @@ export function AsistenciaClient({
   function filasExport() {
     return filas.map((f) => ({
       nombre: f.alumno.nombre,
-      estatus: f.estatus,
+      estatus: formatearEstado(f.estatus, f.justificada),
       observacion: formatearObservacion(f.estatus, f.justificada, f.justificacionMotivo, f.justificacionDetalle),
       fecha: formatearFecha(cargado.fecha),
       hora: formatearHora(f.marcadoEn)

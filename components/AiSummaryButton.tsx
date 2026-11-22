@@ -27,7 +27,7 @@ interface Resultado {
 
 function formatearFecha(iso: string) {
     const [anio, mes, dia] = iso.split('-').map(Number);
-    return new Date(anio, mes - 1, dia).toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
+    return new Date(anio, mes - 1, dia).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function textoPeriodo(r: Resultado) {

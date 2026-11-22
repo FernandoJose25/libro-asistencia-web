@@ -23,9 +23,9 @@ export interface FilaReporteAlumno {
 }
 
 export interface DetalleFechas {
-    faltas: string[]; // YYYY-MM-DD, más reciente primero
+    faltas: string[]; // YYYY-MM-DD, más reciente primero; solo las no justificadas
     tardanzas: string[];
-    justificadas: string[]; // faltas justificadas (también están en "faltas")
+    justificadas: { fecha: string; motivo: string }[]; // motivo ya como texto ("Sin clases")
 }
 
 interface ConteoPeriodo {
@@ -45,8 +45,18 @@ interface Periodo {
 function formatearFecha(iso: string) {
     const [anio, mes, dia] = iso.split('-').map(Number);
     const fecha = new Date(anio, mes - 1, dia);
-    return fecha.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' });
+    return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
 }
+
+// Cada registro es una hora de clase: un renglón por día y, si fueron las
+// dos horas, "· 2 h". Devuelve [clave, horas] en el orden original.
+function porDia(claves: string[]) {
+    const horas = new Map<string, number>();
+    claves.forEach((c) => horas.set(c, (horas.get(c) || 0) + 1));
+    return Array.from(horas);
+}
+
+const conHoras = (n: number) => (n > 1 ? ` · ${n} h` : '');
 
 function nombreMostrado(f: FilaReporteAlumno) {
     return f.apellidos && f.nombres ? `${f.apellidos}, ${f.nombres}` : f.nombre;
@@ -131,7 +141,7 @@ export function AlumnosReportTable({
         return {
             faltas: detalle.faltas.filter(dentro),
             tardanzas: detalle.tardanzas.filter(dentro),
-            justificadas: detalle.justificadas.filter(dentro)
+            justificadas: detalle.justificadas.filter((j) => dentro(j.fecha))
         };
     }
 
@@ -300,25 +310,42 @@ export function AlumnosReportTable({
                                             📄 Reporte para apoderado (PDF)
                                         </button>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                     <div>
                                         <div className="text-red font-semibold mb-1.5">Faltó ({detalle.faltas.length})</div>
                                         {detalle.faltas.length === 0 && <div className="text-inkSoft">Sin faltas registradas.</div>}
                                         <ul className="flex flex-col gap-1">
-                                            {detalle.faltas.map((d) => (
+                                            {porDia(detalle.faltas).map(([d, n]) => (
                                                 <li key={d} className="text-ink">
                                                     {formatearFecha(d)}
+                                                    {conHoras(n)}
                                                 </li>
                                             ))}
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <div className="text-leafDark font-semibold mb-1.5">Justificadas ({detalle.justificadas.length})</div>
+                                        {detalle.justificadas.length === 0 && <div className="text-inkSoft">Sin faltas justificadas.</div>}
+                                        <ul className="flex flex-col gap-1">
+                                            {porDia(detalle.justificadas.map((j) => `${j.fecha}|${j.motivo}`)).map(([clave, n]) => {
+                                                const [d, motivo] = clave.split('|');
+                                                return (
+                                                    <li key={clave} className="text-ink">
+                                                        {formatearFecha(d)}
+                                                        {conHoras(n)} <span className="text-inkSoft">· {motivo}</span>
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     </div>
                                     <div>
                                         <div className="text-amber font-semibold mb-1.5">Retardos ({detalle.tardanzas.length})</div>
                                         {detalle.tardanzas.length === 0 && <div className="text-inkSoft">Sin retardos registrados.</div>}
                                         <ul className="flex flex-col gap-1">
-                                            {detalle.tardanzas.map((d) => (
+                                            {porDia(detalle.tardanzas).map(([d, n]) => (
                                                 <li key={d} className="text-ink">
                                                     {formatearFecha(d)}
+                                                    {conHoras(n)}
                                                 </li>
                                             ))}
                                         </ul>

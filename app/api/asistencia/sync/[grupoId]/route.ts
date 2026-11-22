@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { contextoDrive } from '@/lib/driveContext';
 import { sincronizarAsistenciaADrive } from '@/lib/driveAsistencia';
 import { sanitizarNombreArchivo } from '@/lib/utils';
-import { formatearObservacion } from '@/lib/formatearAsistenciaExport';
+import { formatearEstado, formatearObservacion } from '@/lib/formatearAsistenciaExport';
 import type { Estatus } from '@/lib/types';
 import type { MotivoJustificacion } from '@/components/JustificarPopover';
 
@@ -51,7 +51,7 @@ export async function POST(request: Request, { params }: { params: { grupoId: st
     const detalle = registro?.justificacion_detalle || null;
     return {
       nombre: a.nombre,
-      estatus,
+      estatus: formatearEstado(estatus, justificada),
       observacion: formatearObservacion(estatus, justificada, motivo, detalle),
       fecha: `${dia}/${mes}/${anio}`,
       hora: marcadoEn

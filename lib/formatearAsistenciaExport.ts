@@ -8,6 +8,14 @@ export const MOTIVO_LABEL: Record<MotivoJustificacion, string> = {
   sin_clases: 'Sin clases'
 };
 
+// Columna "Estado" de Excel/PDF/Drive. La falta justificada no cuenta como
+// falta, así que no se escribe "Faltó".
+export function formatearEstado(estatus: Estatus, justificada: boolean): string {
+  if (estatus === 'asistio') return 'Asistió';
+  if (estatus === 'tardanza') return 'Retardo';
+  return justificada ? 'Justificada' : 'Faltó';
+}
+
 export function formatearObservacion(
   estatus: Estatus,
   justificada: boolean,

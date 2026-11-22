@@ -40,7 +40,7 @@ function useSaludo() {
     return {
       saludo: franja.saludo,
       mensaje: DIAS_ESPECIALES[ahora.getDay()] || franja.mensaje,
-      fecha: ahora.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }),
+      fecha: ahora.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }),
       hora: ahora.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false })
     };
   }, [ahora]);
