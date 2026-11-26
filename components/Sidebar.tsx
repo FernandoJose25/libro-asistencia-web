@@ -77,7 +77,6 @@ export function Sidebar({ grupos }: { grupos: { id: string; nombre: string }[] }
           {item('/dashboard/grupos', 'Grupos', 'carpeta', '/dashboard/grupos')}
           {item('/dashboard/asistencia', 'Asistencia', 'calendario', '/dashboard/asistencia')}
           {item('/dashboard/alumnos', 'Alumnos', 'birrete', '/dashboard/alumnos')}
-          {item('/dashboard/drive', 'Drive', 'nube', '/dashboard/drive')}
         </nav>
 
         {grupos.length > 0 && (
@@ -89,7 +88,10 @@ export function Sidebar({ grupos }: { grupos: { id: string; nombre: string }[] }
           </>
         )}
 
+        {/* Drive va arriba de "Desconectar Drive" para que no quede pegado al
+            último grupo y se toque por accidente. */}
         <div className="mt-auto pt-3.5 border-t border-white/10 flex flex-col gap-0.5">
+          {item('/dashboard/drive', 'Drive', 'nube', '/dashboard/drive')}
           <button
             onClick={desconectarDrive}
             className="flex items-center gap-3 w-full text-left px-3 py-2.5 rounded-lg text-sm text-[#8d97ad] hover:bg-white/5 hover:text-white"
