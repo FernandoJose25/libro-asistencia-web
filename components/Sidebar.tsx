@@ -5,7 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSidebar } from './SidebarContext';
 import { Icono, type NombreIcono } from './Icono';
 
-export function Sidebar() {
+// grupos: los activos, cada uno con su página de Trabajos y Exámenes.
+export function Sidebar({ grupos }: { grupos: { id: string; nombre: string }[] }) {
   const pathname = usePathname();
   const router = useRouter();
   const { abierto, cerrar } = useSidebar();
@@ -14,13 +15,14 @@ export function Sidebar() {
     const activo = pathname === href || (matchExtra ? pathname.startsWith(matchExtra) : false);
     return (
       <Link
+        key={href}
         href={href}
         onClick={cerrar}
         className={`relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-[15px] transition-colors ${activo ? 'bg-navyActive text-gold font-bold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-[3px] before:rounded-full before:bg-gold' : 'text-[#a9b3c6] hover:bg-white/5 hover:text-white'
           }`}
       >
         <Icono nombre={icon} className="w-[18px] h-[18px]" />
-        {label}
+        <span className="truncate">{label}</span>
       </Link>
     );
   };
@@ -42,7 +44,7 @@ export function Sidebar() {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[250px] shrink-0 bg-navy p-4 flex flex-col text-[#a9b3c6] transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-[250px] shrink-0 bg-navy p-4 flex flex-col overflow-y-auto text-[#a9b3c6] transition-transform duration-200 ease-out md:static md:z-auto md:translate-x-0 ${
           abierto ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -74,11 +76,18 @@ export function Sidebar() {
         <nav className="flex flex-col gap-0.5">
           {item('/dashboard/grupos', 'Grupos', 'carpeta', '/dashboard/grupos')}
           {item('/dashboard/asistencia', 'Asistencia', 'calendario', '/dashboard/asistencia')}
-          {item('/dashboard/trabajos', 'Trabajos', 'lapiz', '/dashboard/trabajos')}
-          {item('/dashboard/examenes', 'Exámenes', 'examen', '/dashboard/examenes')}
           {item('/dashboard/alumnos', 'Alumnos', 'birrete', '/dashboard/alumnos')}
           {item('/dashboard/drive', 'Drive', 'nube', '/dashboard/drive')}
         </nav>
+
+        {grupos.length > 0 && (
+          <>
+            <div className="text-[10px] uppercase tracking-wider text-[#6d7996] px-2.5 pb-1.5 pt-3">Trabajos y exámenes</div>
+            <nav className="flex flex-col gap-0.5">
+              {grupos.map((g) => item(`/dashboard/calificaciones/${g.id}`, g.nombre, 'examen'))}
+            </nav>
+          </>
+        )}
 
         <div className="mt-auto pt-3.5 border-t border-white/10 flex flex-col gap-0.5">
           <button

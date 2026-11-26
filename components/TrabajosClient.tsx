@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno } from '@/lib/types';
@@ -30,22 +30,27 @@ export function TrabajosClient({
   profesorId,
   porcentajeTrabajos,
   alumnos,
-  trabajosIniciales,
-  notasIniciales
+  trabajos,
+  setTrabajos,
+  notas,
+  setNotas,
+  parcial,
+  setParcial
 }: {
   grupoId: string;
   grupoNombre: string;
   profesorId: string;
   porcentajeTrabajos: number;
   alumnos: Alumno[];
-  trabajosIniciales: Trabajo[];
-  notasIniciales: NotaTrabajo[];
+  // Compartidos con Exámenes (ver CalificacionesGrupo).
+  trabajos: Trabajo[];
+  setTrabajos: Dispatch<SetStateAction<Trabajo[]>>;
+  notas: Map<string, NotaTrabajo>;
+  setNotas: Dispatch<SetStateAction<Map<string, NotaTrabajo>>>;
+  parcial: Parcial;
+  setParcial: (p: Parcial) => void;
 }) {
   const supabase = supabaseBrowser();
-  const [trabajos, setTrabajos] = useState(trabajosIniciales);
-  const [notas, setNotas] = useState(() => new Map(notasIniciales.map((n) => [claveNota(n.alumno_id, n.evaluacion_id), n])));
-  // Abre en el último parcial con trabajos: suele ser el que está en curso.
-  const [parcial, setParcial] = useState<Parcial>(() => (Math.max(1, ...trabajosIniciales.map((t) => t.parcial)) as Parcial));
   const [seleccionadoId, setSeleccionadoId] = useState<string | null>(null);
   const [nuevoTitulo, setNuevoTitulo] = useState('');
   const [nuevoParcial, setNuevoParcial] = useState<Parcial>(parcial);
@@ -72,11 +77,15 @@ export function TrabajosClient({
     return () => window.removeEventListener('beforeunload', avisar);
   }, [pendientes]);
 
+  // El parcial también se cambia desde Exámenes.
+  useEffect(() => {
+    setNuevoParcial(parcial);
+    setEdicion(null);
+  }, [parcial]);
+
   function cambiarParcial(p: Parcial) {
     setParcial(p);
-    setNuevoParcial(p);
     setSeleccionadoId(null);
-    setEdicion(null);
   }
 
   async function crearTrabajo() {

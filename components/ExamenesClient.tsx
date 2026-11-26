@@ -32,26 +32,28 @@ export function ExamenesClient({
   porcentajeTrabajos,
   alumnos,
   trabajos,
-  notas: notasLista,
-  examenesIniciales
+  notas,
+  parcial,
+  setParcial,
+  examenesIniciales,
+  irATrabajos
 }: {
   grupoId: string;
   grupoNombre: string;
   profesorId: string;
   porcentajeTrabajos: number;
   alumnos: Alumno[];
+  // Compartidos con Trabajos (ver CalificacionesGrupo).
   trabajos: Trabajo[];
-  notas: NotaTrabajo[];
+  notas: Map<string, NotaTrabajo>;
+  parcial: Parcial;
+  setParcial: (p: Parcial) => void;
   examenesIniciales: ExamenGuardado[];
+  irATrabajos: () => void;
 }) {
   const supabase = supabaseBrowser();
-  const [notas] = useState(() => new Map(notasLista.map((n) => [claveNota(n.alumno_id, n.evaluacion_id), n])));
   const [examenes, setExamenes] = useState(
     () => new Map(examenesIniciales.map((e) => [claveExamen(e.alumno_id, e.parcial), e.nota]))
-  );
-  // Abre en el último parcial con trabajos o exámenes: suele ser el que está en curso.
-  const [parcial, setParcial] = useState<Parcial>(
-    () => Math.max(1, ...trabajos.map((t) => t.parcial), ...examenesIniciales.map((e) => e.parcial)) as Parcial
   );
   // Lo que se está escribiendo en cada casilla, antes de salir de ella.
   const [borradores, setBorradores] = useState<Record<string, string>>({});
@@ -71,12 +73,12 @@ export function ExamenesClient({
 
   const trabajosDelParcial = trabajos.filter((t) => t.parcial === parcial);
 
-  function cambiarParcial(p: Parcial) {
-    setParcial(p);
+  // El parcial también se cambia desde Trabajos.
+  useEffect(() => {
     setBorradores({});
     setErrores({});
     setCopiado(null);
-  }
+  }, [parcial]);
 
   // Se guarda al salir de la casilla (o con Enter). Vacía = sin examen.
   async function guardarExamen(alumno: Alumno, p: Parcial) {
@@ -208,7 +210,7 @@ export function ExamenesClient({
         </header>
 
         <div className="mb-4">
-          <SelectorParcial valor={parcial} onCambiar={cambiarParcial} />
+          <SelectorParcial valor={parcial} onCambiar={setParcial} />
         </div>
 
         <section className="bg-white border border-border rounded-card">
@@ -245,9 +247,9 @@ export function ExamenesClient({
             {trabajosDelParcial.length === 0 && porcentajeTrabajos > 0 && (
               <p className="text-[12.5px] text-amber mt-1.5">
                 Este parcial aún no tiene trabajos: la calificación sale cuando haya trabajos.{' '}
-                <Link href={`/dashboard/trabajos/${grupoId}`} className="font-bold underline underline-offset-2">
+                <button onClick={irATrabajos} className="font-bold underline underline-offset-2">
                   Ir a Trabajos
-                </Link>
+                </button>
               </p>
             )}
           </div>

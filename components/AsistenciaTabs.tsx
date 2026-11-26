@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Grupo } from '@/lib/types';
 
-// Pestañas de grupo de Asistencia, Trabajos y Exámenes: "base" es la sección.
+// Pestañas de grupo de Asistencia: "base" es la sección.
 export function AsistenciaTabs({ grupos, base = '/dashboard/asistencia' }: { grupos: Grupo[]; base?: string }) {
   const pathname = usePathname();
 
