@@ -155,6 +155,15 @@ const TRAZOS = {
       <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
     </>
   ),
+  dispersion: (
+    <>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <circle cx="8" cy="15" r="1.25" />
+      <circle cx="11.5" cy="11" r="1.25" />
+      <circle cx="16" cy="12.5" r="1.25" />
+      <circle cx="18.5" cy="6.5" r="1.25" />
+    </>
+  ),
   ajustes: (
     <>
       <path d="M20 7h-9" />

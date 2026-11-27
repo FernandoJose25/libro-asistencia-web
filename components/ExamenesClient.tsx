@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabaseClient';
 import { Alumno } from '@/lib/types';
@@ -20,6 +20,7 @@ import {
 import type { ExamenGuardado } from '@/lib/cargarCalificaciones';
 import { SelectorParcial } from './SelectorParcial';
 import { Icono } from './Icono';
+import { AnalisisCorrelacion } from './AnalisisCorrelacion';
 
 const claveExamen = (alumnoId: string, parcial: Parcial) => `${alumnoId}|${parcial}`;
 // Para Excel: número con una decimal como máximo, o celda vacía.
@@ -60,6 +61,8 @@ export function ExamenesClient({
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [pendientes, setPendientes] = useState(0);
   const [copiado, setCopiado] = useState<'ok' | 'error' | null>(null);
+  const [analisis, setAnalisis] = useState(false);
+  const cerrarAnalisis = useCallback(() => setAnalisis(false), []);
 
   useEffect(() => {
     if (pendientes === 0) return;
@@ -150,6 +153,10 @@ export function ExamenesClient({
       alumno: a,
       trabajos: trabajosProm,
       calificados: trabajosDelParcial.filter((t) => notas.has(claveNota(a.id, t.id))).length,
+      entregadas: trabajosDelParcial.filter((t) => {
+        const n = notas.get(claveNota(a.id, t.id));
+        return n && !n.no_entrego;
+      }).length,
       examen,
       calificacion,
       sistema: calificacionSistema(calificacion)
@@ -223,6 +230,13 @@ export function ExamenesClient({
                 </span>
               </h2>
               <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setAnalisis(true)}
+                  className="min-h-[38px] inline-flex items-center gap-1.5 px-3 rounded-md border border-navy bg-navy text-white text-[13px] font-semibold hover:bg-navyActive"
+                >
+                  <Icono nombre="dispersion" className="w-4 h-4" />
+                  Análisis
+                </button>
                 <button
                   onClick={copiar}
                   className="min-h-[38px] inline-flex items-center gap-1.5 px-3 rounded-md border border-border bg-white text-[13px] font-semibold hover:bg-bg"
@@ -327,6 +341,16 @@ export function ExamenesClient({
           una decimal. Sistema = la que se captura en la escuela: la real redondeada (desde .5 sube: 5.5 → 6) y nunca menor a 5.
         </p>
       </div>
+
+      {analisis && (
+        <AnalisisCorrelacion
+          parcial={parcial}
+          porcentajeTrabajos={porcentajeTrabajos}
+          totalTrabajos={trabajosDelParcial.length}
+          filas={filas.map((f) => ({ nombre: f.alumno.nombre, entregadas: f.entregadas, examen: f.examen, calificacion: f.calificacion }))}
+          onCerrar={cerrarAnalisis}
+        />
+      )}
     </div>
   );
 }
